@@ -1,6 +1,7 @@
 const http = require('node:http');
 const fs = require('node:fs/promises');
 const path = require('node:path');
+const { spawn } = require('node:child_process');
 const { downloadBatchSubtitles, parseBatchInputs } = require('./batch-downloader');
 const { parseCookieText } = require('./cookie');
 const { downloadVideoSubtitles } = require('./downloader');
@@ -25,6 +26,19 @@ function sendJson(response, statusCode, payload) {
     'Cache-Control': 'no-store',
   });
   response.end(JSON.stringify(payload));
+}
+
+function openFolder(folderPath) {
+  return new Promise((resolve, reject) => {
+    const child = spawn('explorer.exe', [folderPath], {
+      detached: true,
+      stdio: 'ignore',
+      windowsHide: true,
+    });
+    child.once('error', reject);
+    child.unref();
+    resolve();
+  });
 }
 
 function parseDateBoundary(value, endOfDay = false) {
@@ -61,10 +75,21 @@ function createGuiServer(options = {}) {
   const runAddSubscription = options.addSubscription || addSubscription;
   const runRemoveSubscription = options.removeSubscription || removeSubscription;
   const runUpdateSubscriptions = options.updateSubscriptions || updateSubscriptions;
+  const runOpenFolder = options.openFolder || openFolder;
 
   return http.createServer(async (request, response) => {
     try {
       const url = new URL(request.url, 'http://127.0.0.1');
+
+      if (request.method === 'POST' && url.pathname === '/api/open-folder') {
+        const body = await readRequestJson(request);
+        const outputDir = String(body.outputDir || 'downloads').trim() || 'downloads';
+        const folderPath = path.resolve(outputDir);
+        await fs.mkdir(folderPath, { recursive: true });
+        await runOpenFolder(folderPath);
+        sendJson(response, 200, { opened: true, path: folderPath });
+        return;
+      }
 
       if (request.method === 'GET' && url.pathname === '/api/subscriptions') {
         sendJson(response, 200, { subscriptions: await runListSubscriptions() });

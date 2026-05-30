@@ -5,6 +5,7 @@ const uploaderInput = document.querySelector('#uploader-input');
 const videoInput = document.querySelector('#video-input');
 const cookieInput = document.querySelector('#cookie-input');
 const outputInput = document.querySelector('#output-input');
+const openOutputButton = document.querySelector('#open-output-button');
 const startDateInput = document.querySelector('#start-date-input');
 const endDateInput = document.querySelector('#end-date-input');
 const chineseOnlyInput = document.querySelector('#chinese-only-input');
@@ -253,6 +254,25 @@ clearButton.addEventListener('click', () => {
   resultOutput.textContent = '';
   resultOutput.hidden = true;
   detailToggle.hidden = true;
+});
+
+openOutputButton.addEventListener('click', async () => {
+  openOutputButton.disabled = true;
+  try {
+    const response = await fetch('/api/open-folder', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ outputDir: outputInput.value }),
+    });
+    const payload = await response.json();
+    if (!response.ok) throw new Error(payload.error || `HTTP ${response.status}`);
+    showResult('已打开目录', payload);
+  } catch (error) {
+    setStatus('Error', 'is-error');
+    showResult('错误', error.message || String(error));
+  } finally {
+    openOutputButton.disabled = false;
+  }
 });
 
 function renderSubscriptions(subscriptions) {

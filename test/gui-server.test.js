@@ -230,3 +230,28 @@ test('subscriptions api lists, adds, removes, and updates subscriptions', async 
     server.close();
   }
 });
+
+test('open output folder api creates and opens requested folder', async () => {
+  let openedPath;
+  const server = createGuiServer({
+    openFolder: async (folderPath) => {
+      openedPath = folderPath;
+    },
+  });
+  const port = await listen(server);
+
+  try {
+    const response = await fetch(`http://127.0.0.1:${port}/api/open-folder`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ outputDir: 'downloads' }),
+    });
+    const payload = await response.json();
+
+    assert.equal(response.status, 200);
+    assert.match(openedPath, /downloads$/);
+    assert.equal(payload.opened, true);
+  } finally {
+    server.close();
+  }
+});
