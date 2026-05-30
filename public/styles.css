@@ -164,6 +164,12 @@ textarea:focus {
   max-width: 280px;
 }
 
+.date-grid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 180px));
+  gap: 14px;
+}
+
 .options {
   display: grid;
   gap: 10px;
@@ -293,5 +299,9 @@ button.secondary:hover {
 
   .result-panel {
     min-height: 360px;
+  }
+
+  .date-grid {
+    grid-template-columns: 1fr;
   }
 }

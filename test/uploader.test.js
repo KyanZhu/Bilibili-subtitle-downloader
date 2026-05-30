@@ -39,3 +39,34 @@ test('downloads uploader videos into uploader-name folder', async () => {
   assert.deepEqual(seen[0].inputs, ['BV1111111111', 'BV2222222222']);
   assert.equal(seen[0].outputDir, path.join('downloads', '三七床车流浪中国'));
 });
+
+test('filters uploader videos by publish time before downloading', async () => {
+  const seen = [];
+  const result = await downloadUploaderSubtitles({
+    uploader: '1350959407',
+    outputDir: 'downloads',
+    delayMs: 0,
+    publishedAfter: 1778198400,
+    publishedBefore: 1778284799,
+    client: {
+      resolveUploaderByName: async () => ({ mid: 1350959407, name: '三七床车流浪中国' }),
+      getUploaderInfo: async () => ({ mid: 1350959407, name: '三七床车流浪中国' }),
+      getUploaderVideos: async () => ({
+        total: 3,
+        videos: [
+          { bvid: 'BV_OLD', title: 'Old', created: 1778111999 },
+          { bvid: 'BV_IN_RANGE', title: 'In range', created: 1778214713 },
+          { bvid: 'BV_NEW', title: 'New', created: 1778371200 },
+        ],
+      }),
+    },
+    downloadBatchSubtitles: async (options) => {
+      seen.push(options);
+      return { status: 'completed', summary: { total: options.inputs.length }, results: [] };
+    },
+  });
+
+  assert.deepEqual(seen[0].inputs, ['BV_IN_RANGE']);
+  assert.equal(result.totalVideos, 3);
+  assert.equal(result.filteredVideos, 1);
+});

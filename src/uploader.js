@@ -39,7 +39,13 @@ async function downloadUploaderSubtitles(options) {
     pageSize: options.pageSize || 30,
     maxPages: options.maxPages || 20,
   });
-  const inputs = videoList.videos.map((video) => video.bvid).filter(Boolean);
+  const filteredVideos = videoList.videos.filter((video) => {
+    const publishedAt = Number(video.created || video.pubdate || 0);
+    if (options.publishedAfter && publishedAt < options.publishedAfter) return false;
+    if (options.publishedBefore && publishedAt > options.publishedBefore) return false;
+    return true;
+  });
+  const inputs = filteredVideos.map((video) => video.bvid).filter(Boolean);
   const uploaderOutputDir = path.join(options.outputDir || 'downloads', sanitizeName(uploader.name));
   const batch = await (options.downloadBatchSubtitles || downloadBatchSubtitles)({
     inputs,
@@ -56,6 +62,7 @@ async function downloadUploaderSubtitles(options) {
     status: batch.status,
     uploader,
     totalVideos: videoList.total,
+    filteredVideos: filteredVideos.length,
     outputDir: uploaderOutputDir,
     batch,
   };

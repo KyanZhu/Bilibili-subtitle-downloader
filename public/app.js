@@ -4,6 +4,8 @@ const uploaderInput = document.querySelector('#uploader-input');
 const videoInput = document.querySelector('#video-input');
 const cookieInput = document.querySelector('#cookie-input');
 const outputInput = document.querySelector('#output-input');
+const startDateInput = document.querySelector('#start-date-input');
+const endDateInput = document.querySelector('#end-date-input');
 const chineseOnlyInput = document.querySelector('#chinese-only-input');
 const plainTextInput = document.querySelector('#plain-text-input');
 const renameByTitleInput = document.querySelector('#rename-by-title-input');
@@ -45,6 +47,9 @@ function summarizePayload(payload) {
       lines.push(`UP 主：${payload.uploader.name || payload.uploader.mid}`);
     }
     lines.push(`总共抓取视频：${payload.totalVideos || summary.total || 0}`);
+    if (payload.filteredVideos !== undefined) {
+      lines.push(`符合时间范围：${payload.filteredVideos}`);
+    }
     lines.push(`成功下载：${summary.downloaded || 0}`);
     lines.push(`下载失败：${summary.errors || 0}`);
     lines.push(`没有字幕：${summary.noSubtitles || 0}`);
@@ -110,6 +115,8 @@ form.addEventListener('submit', async (event) => {
         uploader: uploaderInput.value,
         cookieText: cookieInput.value,
         outputDir: outputInput.value,
+        startDate: startDateInput.value,
+        endDate: endDateInput.value,
         chineseOnly: chineseOnlyInput.checked,
         plainText: plainTextInput.checked,
         renameByTitle: renameByTitleInput.checked,

@@ -114,6 +114,38 @@ test('download api forwards uploader mode to uploader downloader', async () => {
     assert.equal(received.plainText, true);
     assert.equal(received.renameByTitle, true);
     assert.equal(received.delayMs, 1200);
+    assert.equal(received.publishedAfter, undefined);
+    assert.equal(received.publishedBefore, undefined);
+  } finally {
+    server.close();
+  }
+});
+
+test('download api forwards uploader date filters as inclusive timestamps', async () => {
+  let received;
+  const server = createGuiServer({
+    downloadUploaderSubtitles: async (options) => {
+      received = options;
+      return { status: 'completed', uploader: { mid: 1350959407, name: '三七床车流浪中国' } };
+    },
+  });
+  const port = await listen(server);
+
+  try {
+    const response = await fetch(`http://127.0.0.1:${port}/api/download`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        uploaderMode: true,
+        uploader: '1350959407',
+        startDate: '2026-05-08',
+        endDate: '2026-05-09',
+      }),
+    });
+
+    assert.equal(response.status, 200);
+    assert.equal(received.publishedAfter, 1778198400);
+    assert.equal(received.publishedBefore, 1778371199);
   } finally {
     server.close();
   }
