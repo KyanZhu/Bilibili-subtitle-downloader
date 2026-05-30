@@ -149,6 +149,7 @@ function showResult(kind, payload, options = {}) {
 
 function setActiveTab(tabName) {
   activeTab = tabName;
+  form.classList.toggle('is-video-mode', tabName === 'video');
   for (const button of tabButtons) {
     button.classList.toggle('is-active', button.dataset.tab === tabName);
   }

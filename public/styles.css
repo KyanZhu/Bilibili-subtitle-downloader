@@ -17,6 +17,10 @@
   box-sizing: border-box;
 }
 
+[hidden] {
+  display: none !important;
+}
+
 body {
   margin: 0;
   min-height: 100vh;
@@ -135,6 +139,10 @@ h2 {
 .tab-panel {
   display: grid;
   gap: 18px;
+}
+
+.form.is-video-mode .non-video-option {
+  display: none;
 }
 
 .field {
