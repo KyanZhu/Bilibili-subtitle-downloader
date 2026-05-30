@@ -40,6 +40,45 @@ test('download api parses cookie text and returns downloader result', async () =
   }
 });
 
+test('download api collects plain text when requested', async () => {
+  let received;
+  let collectedPayload;
+  const server = createGuiServer({
+    downloadVideoSubtitles: async (options) => {
+      received = options;
+      return { bvid: 'BV1Jh5d68Er3', status: 'downloaded', downloaded: [] };
+    },
+    writeCollectedPlainText: async (payload, options) => {
+      collectedPayload = { payload, options };
+      return 'downloads/2026-05-31.txt';
+    },
+    now: new Date('2026-05-31T12:00:00'),
+  });
+  const port = await listen(server);
+
+  try {
+    const response = await fetch(`http://127.0.0.1:${port}/api/download`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        input: 'BV1Jh5d68Er3',
+        outputDir: 'downloads',
+        collectPlainText: true,
+      }),
+    });
+    const payload = await response.json();
+
+    assert.equal(response.status, 200);
+    assert.equal(received.plainText, true);
+    assert.equal(received.collectPlainText, true);
+    assert.equal(collectedPayload.payload.bvid, 'BV1Jh5d68Er3');
+    assert.equal(collectedPayload.options.outputDir, 'downloads');
+    assert.equal(payload.collectedPlainTextPath, 'downloads/2026-05-31.txt');
+  } finally {
+    server.close();
+  }
+});
+
 test('download api forwards batch options to batch downloader', async () => {
   let received;
   const server = createGuiServer({

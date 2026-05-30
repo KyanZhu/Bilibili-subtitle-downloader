@@ -5,6 +5,7 @@ const { spawn } = require('node:child_process');
 const { downloadBatchSubtitles, parseBatchInputs } = require('./batch-downloader');
 const { parseCookieText } = require('./cookie');
 const { downloadVideoSubtitles } = require('./downloader');
+const { writeCollectedPlainText } = require('./plain-text-collector');
 const { downloadUploaderSubtitles } = require('./uploader');
 const {
   addSubscription,
@@ -89,6 +90,7 @@ function createGuiServer(options = {}) {
   const runRemoveSubscription = options.removeSubscription || removeSubscription;
   const runUpdateSubscriptions = options.updateSubscriptions || updateSubscriptions;
   const runOpenFolder = options.openFolder || openFolder;
+  const runWriteCollectedPlainText = options.writeCollectedPlainText || writeCollectedPlainText;
   const runShutdown = options.shutdown;
 
   const server = http.createServer(async (request, response) => {
@@ -140,12 +142,14 @@ function createGuiServer(options = {}) {
 
       if (request.method === 'POST' && url.pathname === '/api/subscriptions/update') {
         const body = await readRequestJson(request);
+        const outputDir = String(body.outputDir || 'downloads').trim() || 'downloads';
         const result = await runUpdateSubscriptions({
-          outputDir: String(body.outputDir || 'downloads').trim() || 'downloads',
+          outputDir,
           cookie: parseCookieText(body.cookieText || ''),
           chineseOnly: Boolean(body.chineseOnly),
-          plainText: Boolean(body.plainText),
+          plainText: Boolean(body.plainText || body.collectPlainText),
           renameByTitle: Boolean(body.renameByTitle),
+          collectPlainText: Boolean(body.collectPlainText),
           downloadAudioWhenNoSubtitles: Boolean(body.downloadAudioWhenNoSubtitles),
           groupByDate: Boolean(body.groupByDate),
           incrementalUpdate: body.incrementalUpdate !== false,
@@ -153,18 +157,29 @@ function createGuiServer(options = {}) {
           publishedAfter: parseDateBoundary(body.startDate),
           publishedBefore: parseDateBoundary(body.endDate, true),
         });
+        if (body.collectPlainText) {
+          const collectionPath = await runWriteCollectedPlainText(result, {
+            outputDir: 'downloads',
+            now: options.now,
+          });
+          if (collectionPath) {
+            result.collectedPlainTextPath = collectionPath;
+          }
+        }
         sendJson(response, 200, result);
         return;
       }
 
       if (request.method === 'POST' && url.pathname === '/api/download') {
         const body = await readRequestJson(request);
+        const outputDir = String(body.outputDir || 'downloads').trim() || 'downloads';
         const commonOptions = {
-          outputDir: String(body.outputDir || 'downloads').trim() || 'downloads',
+          outputDir,
           cookie: parseCookieText(body.cookieText || ''),
           chineseOnly: Boolean(body.chineseOnly),
-          plainText: Boolean(body.plainText),
+          plainText: Boolean(body.plainText || body.collectPlainText),
           renameByTitle: Boolean(body.renameByTitle),
+          collectPlainText: Boolean(body.collectPlainText),
           downloadAudioWhenNoSubtitles: Boolean(body.downloadAudioWhenNoSubtitles),
         };
         if (body.uploaderMode) {
@@ -182,6 +197,15 @@ function createGuiServer(options = {}) {
             publishedAfter: parseDateBoundary(body.startDate),
             publishedBefore: parseDateBoundary(body.endDate, true),
           });
+          if (body.collectPlainText) {
+            const collectionPath = await runWriteCollectedPlainText(result, {
+              outputDir: 'downloads',
+              now: options.now,
+            });
+            if (collectionPath) {
+              result.collectedPlainTextPath = collectionPath;
+            }
+          }
           sendJson(response, 200, result);
           return;
         }
@@ -201,6 +225,15 @@ function createGuiServer(options = {}) {
           ...commonOptions,
           input: inputs[0],
         });
+        if (body.collectPlainText) {
+          const collectionPath = await runWriteCollectedPlainText(result, {
+            outputDir: 'downloads',
+            now: options.now,
+          });
+          if (collectionPath) {
+            result.collectedPlainTextPath = collectionPath;
+          }
+        }
         sendJson(response, 200, result);
         return;
       }

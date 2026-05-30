@@ -60,7 +60,8 @@ async function downloadVideoSubtitles(options) {
 
   await fs.mkdir(subtitlesDir, { recursive: true });
 
-  const videoInfo = options.renameByTitle && typeof client.getVideoInfo === 'function' ? await client.getVideoInfo(bvid) : null;
+  const needsVideoInfo = options.renameByTitle || options.collectPlainText;
+  const videoInfo = needsVideoInfo && typeof client.getVideoInfo === 'function' ? await client.getVideoInfo(bvid) : null;
   const title = videoInfo && videoInfo.title ? String(videoInfo.title) : '';
   const titlePrefix = options.renameByTitle && title ? `${sanitizeTitleFilename(title)}-` : '';
   const pages = await client.getPages(bvid);

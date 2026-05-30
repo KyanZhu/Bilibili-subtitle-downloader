@@ -10,6 +10,7 @@ const startDateInput = document.querySelector('#start-date-input');
 const endDateInput = document.querySelector('#end-date-input');
 const chineseOnlyInput = document.querySelector('#chinese-only-input');
 const plainTextInput = document.querySelector('#plain-text-input');
+const collectPlainTextInput = document.querySelector('#collect-plain-text-input');
 const renameByTitleInput = document.querySelector('#rename-by-title-input');
 const audioFallbackInput = document.querySelector('#audio-fallback-input');
 const incrementalUpdateInput = document.querySelector('#incremental-update-input');
@@ -77,7 +78,8 @@ function commonPayload(tabName = currentTab()) {
     cookieText: cookieInput.value,
     outputDir: outputInput.value,
     chineseOnly: chineseOnlyInput.checked,
-    plainText: plainTextInput.checked,
+    plainText: plainTextInput.checked || collectPlainTextInput.checked,
+    collectPlainText: collectPlainTextInput.checked,
     renameByTitle: renameByTitleInput.checked,
     downloadAudioWhenNoSubtitles: audioFallbackInput.checked,
     incrementalUpdate: incrementalUpdateInput.checked,
@@ -103,6 +105,10 @@ function summarizePayload(payload) {
       for (const item of failed) {
         lines.push(`- ${item.input}: ${item.error}`);
       }
+    }
+    if (payload.collectedPlainTextPath) {
+      lines.push('');
+      lines.push(`纯文本集合：${payload.collectedPlainTextPath}`);
     }
     return lines.join('\n');
   }
@@ -182,6 +188,10 @@ function summarizePayload(payload) {
         lines.push(`- ${videoUrl(item.url || item.input)}${item.error ? ` (${item.error})` : ''}`);
       }
     }
+    if (payload.collectedPlainTextPath) {
+      lines.push('');
+      lines.push(`纯文本集合：${payload.collectedPlainTextPath}`);
+    }
     return lines.join('\n');
   }
 
@@ -206,6 +216,10 @@ function summarizePayload(payload) {
     for (const item of payload.audio) {
       lines.push(`- ${item.path}`);
     }
+  }
+  if (payload.collectedPlainTextPath) {
+    lines.push('');
+    lines.push(`纯文本集合：${payload.collectedPlainTextPath}`);
   }
   return lines.join('\n');
 }

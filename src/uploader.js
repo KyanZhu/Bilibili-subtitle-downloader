@@ -90,6 +90,7 @@ async function downloadUploaderSubtitles(options) {
     chineseOnly: options.chineseOnly,
     plainText: options.plainText,
     renameByTitle: options.renameByTitle,
+    collectPlainText: options.collectPlainText,
     downloadAudioWhenNoSubtitles: options.downloadAudioWhenNoSubtitles,
     useDateFolder: false,
     delayMs: options.delayMs,

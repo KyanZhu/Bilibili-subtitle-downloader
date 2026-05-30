@@ -119,6 +119,7 @@ async function updateSubscriptions(options = {}) {
         chineseOnly: options.chineseOnly,
         plainText: options.plainText,
         renameByTitle: options.renameByTitle,
+        collectPlainText: options.collectPlainText,
         downloadAudioWhenNoSubtitles: options.downloadAudioWhenNoSubtitles,
         incrementalUpdate: options.incrementalUpdate !== false,
         groupByDate: options.groupByDate,

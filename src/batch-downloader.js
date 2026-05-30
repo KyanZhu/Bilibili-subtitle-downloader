@@ -65,6 +65,7 @@ async function downloadBatchSubtitles(options) {
         chineseOnly: options.chineseOnly,
         plainText: options.plainText,
         renameByTitle: options.renameByTitle,
+        collectPlainText: options.collectPlainText,
         downloadAudioWhenNoSubtitles: options.downloadAudioWhenNoSubtitles,
         useDateFolder: item.useDateFolder !== undefined ? item.useDateFolder : options.useDateFolder,
         videoFolderName: item.videoFolderName,

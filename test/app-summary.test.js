@@ -52,6 +52,7 @@ function loadAppContext(setup = () => {}) {
     '#end-date-input': createElementStub(),
     '#chinese-only-input': createElementStub(),
     '#plain-text-input': createElementStub(),
+    '#collect-plain-text-input': createElementStub(),
     '#rename-by-title-input': createElementStub(),
     '#audio-fallback-input': createElementStub(),
     '#incremental-update-input': createElementStub(),
