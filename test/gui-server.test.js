@@ -185,10 +185,10 @@ test('subscriptions api lists, adds, removes, and updates subscriptions', async 
   const store = [];
   const server = createGuiServer({
     listSubscriptions: async () => store,
-    addSubscription: async (options) => {
+    addSubscriptions: async (options) => {
       const item = { mid: 1350959407, name: '三七床车流浪中国', input: options.input, enabled: true };
       store.push(item);
-      return item;
+      return { status: 'completed', summary: { total: 1, added: 1, errors: 0 }, results: [{ input: options.input, status: 'added', item }] };
     },
     removeSubscription: async (options) => {
       calls.push(['remove', options.mid]);
@@ -216,7 +216,7 @@ test('subscriptions api lists, adds, removes, and updates subscriptions', async 
       body: JSON.stringify({ input: '1350959407' }),
     });
     assert.equal(response.status, 200);
-    assert.equal((await response.json()).mid, 1350959407);
+    assert.equal((await response.json()).summary.added, 1);
 
     response = await fetch(`http://127.0.0.1:${port}/api/subscriptions`);
     assert.equal(response.status, 200);

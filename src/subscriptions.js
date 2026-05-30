@@ -21,6 +21,20 @@ async function writeSubscriptions(filePath, subscriptions) {
   await fs.writeFile(filePath, `${JSON.stringify(subscriptions, null, 2)}\n`, 'utf8');
 }
 
+function parseSubscriptionInputs(value) {
+  const seen = new Set();
+  const inputs = [];
+  for (const item of String(value || '').split(/[\n\r,，]+/)) {
+    const trimmed = item.trim();
+    if (!trimmed || seen.has(trimmed)) {
+      continue;
+    }
+    seen.add(trimmed);
+    inputs.push(trimmed);
+  }
+  return inputs;
+}
+
 async function listSubscriptions(options = {}) {
   const subscriptionsPath = options.subscriptionsPath || defaultSubscriptionsPath();
   const list = await readJson(subscriptionsPath);
@@ -47,6 +61,37 @@ async function addSubscription(options) {
   next.push(item);
   await writeSubscriptions(subscriptionsPath, next);
   return item;
+}
+
+async function addSubscriptions(options) {
+  const inputs = parseSubscriptionInputs(options.input);
+  const results = [];
+
+  for (const input of inputs) {
+    try {
+      const item = await addSubscription({
+        ...options,
+        input,
+      });
+      results.push({ input, status: 'added', item });
+    } catch (error) {
+      results.push({
+        input,
+        status: 'error',
+        error: error.message || String(error),
+      });
+    }
+  }
+
+  return {
+    status: 'completed',
+    summary: {
+      total: inputs.length,
+      added: results.filter((result) => result.status === 'added').length,
+      errors: results.filter((result) => result.status === 'error').length,
+    },
+    results,
+  };
 }
 
 async function removeSubscription(options) {
@@ -106,8 +151,10 @@ async function updateSubscriptions(options = {}) {
 
 module.exports = {
   addSubscription,
+  addSubscriptions,
   defaultSubscriptionsPath,
   listSubscriptions,
+  parseSubscriptionInputs,
   removeSubscription,
   updateSubscriptions,
 };

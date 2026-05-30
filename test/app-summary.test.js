@@ -140,6 +140,24 @@ test('summarizes subscription update video totals from nested uploader results',
   assert.match(summary, /没有字幕：1/);
 });
 
+test('summarizes batch subscription add results', () => {
+  const { summarizePayload } = loadAppContext();
+  const summary = summarizePayload({
+    status: 'completed',
+    summary: { total: 3, added: 2, errors: 1 },
+    results: [
+      { input: '1', status: 'added', item: { mid: 1 } },
+      { input: '2', status: 'added', item: { mid: 2 } },
+      { input: 'bad', status: 'error', error: 'not found' },
+    ],
+  });
+
+  assert.match(summary, /添加总数：3/);
+  assert.match(summary, /添加成功：2/);
+  assert.match(summary, /添加失败：1/);
+  assert.match(summary, /bad: not found/);
+});
+
 test('submits uploader tab to download api instead of subscription update api', async () => {
   const context = loadAppContext((elements) => {
     elements['#uploader-input'].value = '1350959407';

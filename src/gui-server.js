@@ -8,6 +8,7 @@ const { downloadVideoSubtitles } = require('./downloader');
 const { downloadUploaderSubtitles } = require('./uploader');
 const {
   addSubscription,
+  addSubscriptions,
   listSubscriptions,
   removeSubscription,
   updateSubscriptions,
@@ -84,6 +85,7 @@ function createGuiServer(options = {}) {
   const runUploaderDownload = options.downloadUploaderSubtitles || downloadUploaderSubtitles;
   const runListSubscriptions = options.listSubscriptions || listSubscriptions;
   const runAddSubscription = options.addSubscription || addSubscription;
+  const runAddSubscriptions = options.addSubscriptions || addSubscriptions;
   const runRemoveSubscription = options.removeSubscription || removeSubscription;
   const runUpdateSubscriptions = options.updateSubscriptions || updateSubscriptions;
   const runOpenFolder = options.openFolder || openFolder;
@@ -122,11 +124,11 @@ function createGuiServer(options = {}) {
 
       if (request.method === 'POST' && url.pathname === '/api/subscriptions') {
         const body = await readRequestJson(request);
-        const item = await runAddSubscription({
+        const result = await runAddSubscriptions({
           input: body.input,
           cookie: parseCookieText(body.cookieText || ''),
         });
-        sendJson(response, 200, item);
+        sendJson(response, 200, result);
         return;
       }
 

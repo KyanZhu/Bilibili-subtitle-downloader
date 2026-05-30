@@ -51,6 +51,11 @@ function isSubscriptionUpdatePayload(payload) {
     && payload.results.some((item) => item && item.subscription));
 }
 
+function isSubscriptionAddPayload(payload) {
+  return Boolean(payload && payload.summary && Array.isArray(payload.results)
+    && payload.results.some((item) => item && (item.status === 'added' || item.input)));
+}
+
 function addSummaryTotals(total, summary) {
   total.total += summary.total || 0;
   total.downloaded += summary.downloaded || 0;
@@ -85,6 +90,22 @@ function commonPayload(tabName = currentTab()) {
 
 function summarizePayload(payload) {
   if (!payload) return '还没有运行下载任务。';
+
+  if (isSubscriptionAddPayload(payload)) {
+    const lines = [];
+    lines.push(`添加总数：${payload.summary.total || 0}`);
+    lines.push(`添加成功：${payload.summary.added || 0}`);
+    lines.push(`添加失败：${payload.summary.errors || 0}`);
+    const failed = payload.results.filter((item) => item.status === 'error');
+    if (failed.length > 0) {
+      lines.push('');
+      lines.push('失败订阅：');
+      for (const item of failed) {
+        lines.push(`- ${item.input}: ${item.error}`);
+      }
+    }
+    return lines.join('\n');
+  }
 
   if (isSubscriptionUpdatePayload(payload)) {
     const totals = {

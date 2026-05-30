@@ -199,6 +199,12 @@ textarea.video-list {
   font-family: Consolas, "SFMono-Regular", monospace;
 }
 
+textarea.subscription-input {
+  min-height: 72px;
+  max-height: 130px;
+  font-family: Consolas, "SFMono-Regular", monospace;
+}
+
 input:focus,
 textarea:focus {
   border-color: var(--accent);

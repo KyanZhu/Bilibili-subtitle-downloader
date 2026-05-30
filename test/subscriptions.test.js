@@ -3,7 +3,22 @@ const assert = require('node:assert/strict');
 const fs = require('node:fs/promises');
 const os = require('node:os');
 const path = require('node:path');
-const { addSubscription, listSubscriptions, removeSubscription, updateSubscriptions } = require('../src/subscriptions');
+const {
+  addSubscription,
+  addSubscriptions,
+  listSubscriptions,
+  parseSubscriptionInputs,
+  removeSubscription,
+  updateSubscriptions,
+} = require('../src/subscriptions');
+
+test('parses subscription inputs from commas and new lines', () => {
+  assert.deepEqual(parseSubscriptionInputs('1350959407, 三七床车流浪中国\nhttps://space.bilibili.com/1350959407'), [
+    '1350959407',
+    '三七床车流浪中国',
+    'https://space.bilibili.com/1350959407',
+  ]);
+});
 
 test('adds resolved uploader subscriptions and persists them', async () => {
   const temp = await fs.mkdtemp(path.join(os.tmpdir(), 'bili-sub-'));
@@ -23,6 +38,30 @@ test('adds resolved uploader subscriptions and persists them', async () => {
   assert.equal(added.mid, 1350959407);
   assert.equal(list.length, 1);
   assert.equal(list[0].name, '三七床车流浪中国');
+});
+
+test('adds subscriptions in a batch and continues after errors', async () => {
+  const temp = await fs.mkdtemp(path.join(os.tmpdir(), 'bili-sub-'));
+  const subscriptionsPath = path.join(temp, 'subscriptions.json');
+  const client = {
+    getUploaderInfo: async (mid) => {
+      if (mid === '2') throw new Error('not found');
+      return { mid: Number(mid), name: `up-${mid}` };
+    },
+    resolveUploaderByName: async () => ({ mid: 3, name: 'named-up' }),
+  };
+
+  const result = await addSubscriptions({
+    input: '1, 2\nnamed',
+    subscriptionsPath,
+    client,
+  });
+  const list = await listSubscriptions({ subscriptionsPath });
+
+  assert.equal(result.summary.total, 3);
+  assert.equal(result.summary.added, 2);
+  assert.equal(result.summary.errors, 1);
+  assert.deepEqual(list.map((item) => item.mid), [1, 3]);
 });
 
 test('removes subscriptions by mid', async () => {
