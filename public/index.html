@@ -65,15 +65,16 @@
             </div>
           </section>
 
-          <label class="field">
-            <span>Cookies</span>
-            <textarea id="cookie-input" name="cookies" spellcheck="false" placeholder="# Netscape HTTP Cookie File&#10;.bilibili.com&#9;TRUE&#9;/&#9;TRUE&#9;...&#9;SESSDATA&#9;..."></textarea>
-          </label>
-
-          <label class="field field-inline">
-            <span>输出目录</span>
-            <input id="output-input" name="output" value="downloads">
-          </label>
+          <div class="settings-row">
+            <label class="field">
+              <span>输出目录</span>
+              <input id="output-input" name="output" value="downloads">
+            </label>
+            <label class="field">
+              <span>批量延迟（毫秒）</span>
+              <input id="delay-input" name="delay" type="number" min="0" step="100" value="800">
+            </label>
+          </div>
 
           <div class="options">
             <label class="check-option">
@@ -98,11 +99,6 @@
             </label>
           </div>
 
-          <label class="field field-inline">
-            <span>批量延迟（毫秒）</span>
-            <input id="delay-input" name="delay" type="number" min="0" step="100" value="800">
-          </label>
-
           <div class="actions">
             <button type="submit" id="download-button">
               <span class="button-icon" aria-hidden="true">↓</span>
@@ -113,6 +109,11 @@
               清空结果
             </button>
           </div>
+
+          <label class="field cookie-field">
+            <span>Cookies</span>
+            <textarea id="cookie-input" name="cookies" spellcheck="false" rows="3" placeholder="# Netscape HTTP Cookie File&#10;.bilibili.com&#9;TRUE&#9;/&#9;TRUE&#9;...&#9;SESSDATA&#9;..."></textarea>
+          </label>
         </form>
       </section>
 

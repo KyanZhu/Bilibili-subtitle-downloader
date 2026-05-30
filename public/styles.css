@@ -194,6 +194,22 @@ textarea:focus {
   max-width: 280px;
 }
 
+.settings-row {
+  display: grid;
+  grid-template-columns: minmax(0, 280px) minmax(0, 180px);
+  gap: 14px;
+  align-items: end;
+}
+
+.cookie-field {
+  margin-top: 4px;
+}
+
+#cookie-input {
+  min-height: 88px;
+  max-height: 140px;
+}
+
 .date-grid {
   display: grid;
   grid-template-columns: repeat(2, minmax(0, 180px));
@@ -255,7 +271,8 @@ textarea:focus {
 }
 
 .options {
-  display: grid;
+  display: flex;
+  flex-wrap: wrap;
   gap: 10px;
   padding: 12px;
   border: 1px solid var(--border);
@@ -267,6 +284,7 @@ textarea:focus {
   display: flex;
   align-items: center;
   gap: 10px;
+  min-height: 30px;
   color: var(--text);
   font-size: 14px;
   font-weight: 650;
@@ -282,6 +300,11 @@ textarea:focus {
   display: flex;
   gap: 12px;
   flex-wrap: wrap;
+  justify-content: space-between;
+}
+
+#clear-button {
+  margin-left: auto;
 }
 
 button {
@@ -390,6 +413,10 @@ button.secondary:hover {
   }
 
   .date-grid {
+    grid-template-columns: 1fr;
+  }
+
+  .settings-row {
     grid-template-columns: 1fr;
   }
 
