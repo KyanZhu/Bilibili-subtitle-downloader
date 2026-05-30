@@ -42,3 +42,17 @@ test('uses the wbi player endpoint for subtitle metadata', async () => {
   await client.getPlayerInfo('BV1Jh5d68Er3', 38332663978);
   assert.match(calls[0], /\/x\/player\/wbi\/v2\?/);
 });
+
+test('fetches video info from the view endpoint', async () => {
+  const calls = [];
+  const client = createBilibiliClient({
+    fetch: async (url) => {
+      calls.push(url);
+      return { ok: true, json: async () => ({ code: 0, data: { title: 'Video Title' } }) };
+    },
+  });
+
+  const info = await client.getVideoInfo('BV1Jh5d68Er3');
+  assert.equal(info.title, 'Video Title');
+  assert.match(calls[0], /\/x\/web-interface\/view\?/);
+});

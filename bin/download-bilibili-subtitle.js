@@ -5,7 +5,7 @@ const { parseCookieText } = require('../src/cookie');
 const { downloadVideoSubtitles } = require('../src/downloader');
 
 function printUsage() {
-  console.log('Usage: node bin/download-bilibili-subtitle.js <bilibili-url-or-bvid> [--output downloads] [--cookie "..."] [--cookie-file cookies.txt]');
+  console.log('Usage: node bin/download-bilibili-subtitle.js <bilibili-url-or-bvid> [--output downloads] [--cookie "..."] [--cookie-file cookies.txt] [--rename-by-title]');
 }
 
 function parseArgs(argv) {
@@ -20,6 +20,8 @@ function parseArgs(argv) {
       args.cookie = argv[++index] || '';
     } else if (arg === '--cookie-file') {
       args.cookieFile = argv[++index];
+    } else if (arg === '--rename-by-title') {
+      args.renameByTitle = true;
     } else if (arg === '--help' || arg === '-h') {
       args.help = true;
     } else {
@@ -47,6 +49,7 @@ async function main() {
     input: args.input,
     outputDir: args.outputDir,
     cookie,
+    renameByTitle: args.renameByTitle,
   });
 
   if (result.status === 'downloaded') {

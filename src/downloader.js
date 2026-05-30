@@ -13,6 +13,10 @@ function sanitizeName(value) {
     .slice(0, 120);
 }
 
+function sanitizeTitleFilename(value) {
+  return sanitizeName(value).replace(/\s+/g, '_');
+}
+
 function subtitleLanguageName(subtitle) {
   return sanitizeName(subtitle.lan || subtitle.lan_doc || 'unknown') || 'unknown';
 }
@@ -39,6 +43,9 @@ async function downloadVideoSubtitles(options) {
 
   await fs.mkdir(subtitlesDir, { recursive: true });
 
+  const videoInfo = options.renameByTitle && typeof client.getVideoInfo === 'function' ? await client.getVideoInfo(bvid) : null;
+  const title = videoInfo && videoInfo.title ? String(videoInfo.title) : '';
+  const titlePrefix = options.renameByTitle && title ? `${sanitizeTitleFilename(title)}-` : '';
   const pages = await client.getPages(bvid);
   const normalizedPages = Array.isArray(pages) ? pages : [];
   let needsAuthenticatedSubtitleAccess = false;
@@ -63,7 +70,7 @@ async function downloadVideoSubtitles(options) {
 
     for (const subtitle of subtitles) {
       const language = subtitleLanguageName(subtitle);
-      const baseName = `${pageLabel}-${language}`;
+      const baseName = `${titlePrefix}${pageLabel}-${language}`;
       const jsonPath = path.join(subtitlesDir, `${baseName}.json`);
       const assPath = path.join(subtitlesDir, `${baseName}.ass`);
       const txtPath = path.join(subtitlesDir, `${baseName}.txt`);
@@ -94,6 +101,8 @@ async function downloadVideoSubtitles(options) {
   const status = downloaded.length > 0 ? 'downloaded' : (needsAuthenticatedSubtitleAccess ? 'auth-required' : 'no-subtitles');
   const metadata = {
     bvid,
+    title,
+    owner: videoInfo && videoInfo.owner ? videoInfo.owner : undefined,
     status,
     needsAuthenticatedSubtitleAccess,
     downloadedAt: new Date().toISOString(),
@@ -105,4 +114,4 @@ async function downloadVideoSubtitles(options) {
   return metadata;
 }
 
-module.exports = { downloadVideoSubtitles, sanitizeName };
+module.exports = { downloadVideoSubtitles, sanitizeName, sanitizeTitleFilename };

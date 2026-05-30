@@ -4,6 +4,7 @@ const cookieInput = document.querySelector('#cookie-input');
 const outputInput = document.querySelector('#output-input');
 const chineseOnlyInput = document.querySelector('#chinese-only-input');
 const plainTextInput = document.querySelector('#plain-text-input');
+const renameByTitleInput = document.querySelector('#rename-by-title-input');
 const delayInput = document.querySelector('#delay-input');
 const statusEl = document.querySelector('#status');
 const resultKind = document.querySelector('#result-kind');
@@ -37,6 +38,7 @@ form.addEventListener('submit', async (event) => {
         outputDir: outputInput.value,
         chineseOnly: chineseOnlyInput.checked,
         plainText: plainTextInput.checked,
+        renameByTitle: renameByTitleInput.checked,
         delayMs: Number(delayInput.value || 800),
       }),
     });

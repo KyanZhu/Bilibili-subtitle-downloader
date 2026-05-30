@@ -53,6 +53,7 @@ async function downloadBatchSubtitles(options) {
         cookie: options.cookie,
         chineseOnly: options.chineseOnly,
         plainText: options.plainText,
+        renameByTitle: options.renameByTitle,
         client: options.client,
       }));
     } catch (error) {

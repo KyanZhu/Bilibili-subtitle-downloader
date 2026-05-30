@@ -16,8 +16,10 @@ test('downloads videos sequentially with a delay between items', async () => {
   const result = await downloadBatchSubtitles({
     inputs: ['BV1111111111', 'BV2222222222'],
     delayMs: 250,
+    renameByTitle: true,
     delay: async (ms) => delays.push(ms),
     downloadVideoSubtitles: async (options) => {
+      assert.equal(options.renameByTitle, true);
       calls.push(options.input);
       return { bvid: options.input, status: 'downloaded', downloaded: [] };
     },

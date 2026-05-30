@@ -52,6 +52,7 @@ function createGuiServer(options = {}) {
           cookie: parseCookieText(body.cookieText || ''),
           chineseOnly: Boolean(body.chineseOnly),
           plainText: Boolean(body.plainText),
+          renameByTitle: Boolean(body.renameByTitle),
         };
         const result = inputs.length > 1 ? await runBatchDownload({
           ...commonOptions,

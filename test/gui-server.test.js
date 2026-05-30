@@ -59,6 +59,7 @@ test('download api forwards batch options to batch downloader', async () => {
         cookieText: '.bilibili.com\tTRUE\t/\tTRUE\t1785224583\tSESSDATA\tabc',
         chineseOnly: true,
         plainText: true,
+        renameByTitle: true,
         delayMs: 300,
       }),
     });
@@ -70,6 +71,7 @@ test('download api forwards batch options to batch downloader', async () => {
     assert.equal(received.cookie, 'SESSDATA=abc');
     assert.equal(received.chineseOnly, true);
     assert.equal(received.plainText, true);
+    assert.equal(received.renameByTitle, true);
     assert.equal(received.delayMs, 300);
   } finally {
     server.close();

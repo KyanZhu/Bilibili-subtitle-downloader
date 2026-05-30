@@ -113,3 +113,27 @@ test('records auth-required when subtitles require login or purchase', async () 
   assert.equal(result.status, 'auth-required');
   assert.equal(result.needsAuthenticatedSubtitleAccess, true);
 });
+
+test('uses video title in subtitle filenames when requested', async () => {
+  const temp = await fs.mkdtemp(path.join(os.tmpdir(), 'bili-sub-'));
+  const client = {
+    getVideoInfo: async () => ({ title: 'A/B: Video Title?' }),
+    getPages: async () => [{ cid: 123, page: 1, part: 'Part One' }],
+    getPlayerInfo: async () => ({
+      subtitle: {
+        subtitles: [{ lan: 'zh-Hans', subtitle_url: '//example.com/zh.json' }],
+      },
+    }),
+    downloadSubtitle: async () => ({ body: [{ from: 0, to: 1, content: 'hello' }] }),
+  };
+
+  const result = await downloadVideoSubtitles({
+    input: 'BV1Jh5d68Er3',
+    outputDir: temp,
+    client,
+    renameByTitle: true,
+  });
+
+  assert.match(path.basename(result.downloaded[0].assPath), /^A_B__Video_Title_-p01-zh-Hans\.ass$/);
+  assert.equal(result.title, 'A/B: Video Title?');
+});

@@ -42,6 +42,11 @@ function createBilibiliClient(options = {}) {
       return getJson(url, bvid, 'pagelist');
     },
 
+    getVideoInfo(bvid) {
+      const url = `https://api.bilibili.com/x/web-interface/view?bvid=${encodeURIComponent(bvid)}`;
+      return getJson(url, bvid, 'view');
+    },
+
     getPlayerInfo(bvid, cid) {
       const url = `https://api.bilibili.com/x/player/wbi/v2?bvid=${encodeURIComponent(bvid)}&cid=${encodeURIComponent(cid)}`;
       return getJson(url, bvid, 'player');
