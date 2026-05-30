@@ -78,6 +78,47 @@ test('download api forwards batch options to batch downloader', async () => {
   }
 });
 
+test('download api forwards uploader mode to uploader downloader', async () => {
+  let received;
+  const server = createGuiServer({
+    downloadUploaderSubtitles: async (options) => {
+      received = options;
+      return { status: 'completed', uploader: { mid: 1350959407, name: '三七床车流浪中国' } };
+    },
+  });
+  const port = await listen(server);
+
+  try {
+    const response = await fetch(`http://127.0.0.1:${port}/api/download`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        uploaderMode: true,
+        uploader: 'https://space.bilibili.com/1350959407',
+        cookieText: '.bilibili.com\tTRUE\t/\tTRUE\t1785224583\tSESSDATA\tabc',
+        outputDir: 'downloads',
+        chineseOnly: true,
+        plainText: true,
+        renameByTitle: true,
+        delayMs: 1200,
+      }),
+    });
+    const payload = await response.json();
+
+    assert.equal(response.status, 200);
+    assert.equal(payload.uploader.mid, 1350959407);
+    assert.equal(received.uploader, 'https://space.bilibili.com/1350959407');
+    assert.equal(received.cookie, 'SESSDATA=abc');
+    assert.equal(received.outputDir, 'downloads');
+    assert.equal(received.chineseOnly, true);
+    assert.equal(received.plainText, true);
+    assert.equal(received.renameByTitle, true);
+    assert.equal(received.delayMs, 1200);
+  } finally {
+    server.close();
+  }
+});
+
 test('download api rejects missing video input', async () => {
   const server = createGuiServer({
     downloadVideoSubtitles: async () => {

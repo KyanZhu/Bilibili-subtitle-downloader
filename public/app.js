@@ -1,4 +1,6 @@
 const form = document.querySelector('#download-form');
+const uploaderModeInput = document.querySelector('#uploader-mode-input');
+const uploaderInput = document.querySelector('#uploader-input');
 const videoInput = document.querySelector('#video-input');
 const cookieInput = document.querySelector('#cookie-input');
 const outputInput = document.querySelector('#output-input');
@@ -8,18 +10,88 @@ const renameByTitleInput = document.querySelector('#rename-by-title-input');
 const delayInput = document.querySelector('#delay-input');
 const statusEl = document.querySelector('#status');
 const resultKind = document.querySelector('#result-kind');
+const summaryOutput = document.querySelector('#summary-output');
 const resultOutput = document.querySelector('#result-output');
+const detailToggle = document.querySelector('#detail-toggle');
 const downloadButton = document.querySelector('#download-button');
 const clearButton = document.querySelector('#clear-button');
+
+let lastPayload = null;
+let detailsVisible = false;
 
 function setStatus(label, className) {
   statusEl.className = `status ${className || ''}`.trim();
   statusEl.textContent = label;
 }
 
-function showResult(kind, payload) {
+function videoUrl(value) {
+  if (!value) return '';
+  if (String(value).startsWith('BV')) return `https://www.bilibili.com/video/${value}`;
+  return String(value);
+}
+
+function getBatchPayload(payload) {
+  return payload && payload.batch ? payload.batch : payload;
+}
+
+function summarizePayload(payload) {
+  if (!payload) return '还没有运行下载任务。';
+  const batch = getBatchPayload(payload);
+
+  if (batch && batch.summary) {
+    const summary = batch.summary;
+    const lines = [];
+    if (payload.uploader) {
+      lines.push(`UP 主：${payload.uploader.name || payload.uploader.mid}`);
+    }
+    lines.push(`总共抓取视频：${payload.totalVideos || summary.total || 0}`);
+    lines.push(`成功下载：${summary.downloaded || 0}`);
+    lines.push(`下载失败：${summary.errors || 0}`);
+    lines.push(`没有字幕：${summary.noSubtitles || 0}`);
+    lines.push(`需要权限：${summary.authRequired || 0}`);
+    if (payload.outputDir) lines.push(`保存目录：${payload.outputDir}`);
+
+    const failedVideos = summary.failedVideos || [];
+    if (failedVideos.length > 0) {
+      lines.push('');
+      lines.push('失败视频：');
+      for (const item of failedVideos) {
+        lines.push(`- ${videoUrl(item.url || item.input)}${item.error ? ` (${item.error})` : ''}`);
+      }
+    }
+    return lines.join('\n');
+  }
+
+  const lines = [];
+  lines.push(`视频：${payload.bvid ? videoUrl(payload.bvid) : payload.input || ''}`);
+  lines.push(`状态：${payload.status || 'unknown'}`);
+  lines.push(`成功下载：${payload.status === 'downloaded' ? payload.downloaded.length : 0}`);
+  lines.push(`没有字幕：${payload.status === 'no-subtitles' ? 1 : 0}`);
+  lines.push(`需要权限：${payload.status === 'auth-required' ? 1 : 0}`);
+  if (payload.downloaded && payload.downloaded.length > 0) {
+    lines.push('');
+    lines.push('文件：');
+    for (const item of payload.downloaded) {
+      lines.push(`- ${item.assPath}`);
+      if (item.txtPath) lines.push(`- ${item.txtPath}`);
+    }
+  }
+  return lines.join('\n');
+}
+
+function updateDetailVisibility() {
+  resultOutput.hidden = !detailsVisible;
+  detailToggle.textContent = detailsVisible ? '隐藏详情' : '显示详情';
+}
+
+function showResult(kind, payload, options = {}) {
+  lastPayload = payload;
+  detailsVisible = Boolean(options.showDetails);
   resultKind.textContent = kind;
+  summaryOutput.textContent = typeof payload === 'string' ? payload : summarizePayload(payload);
   resultOutput.textContent = typeof payload === 'string' ? payload : JSON.stringify(payload, null, 2);
+  detailToggle.hidden = typeof payload === 'string' || !payload;
+  updateDetailVisibility();
 }
 
 form.addEventListener('submit', async (event) => {
@@ -34,6 +106,8 @@ form.addEventListener('submit', async (event) => {
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({
         input: videoInput.value,
+        uploaderMode: uploaderModeInput.checked,
+        uploader: uploaderInput.value,
         cookieText: cookieInput.value,
         outputDir: outputInput.value,
         chineseOnly: chineseOnlyInput.checked,
@@ -69,8 +143,19 @@ form.addEventListener('submit', async (event) => {
   }
 });
 
+detailToggle.addEventListener('click', () => {
+  if (!lastPayload) return;
+  detailsVisible = !detailsVisible;
+  updateDetailVisibility();
+});
+
 clearButton.addEventListener('click', () => {
   setStatus('Ready', '');
+  lastPayload = null;
+  detailsVisible = false;
   resultKind.textContent = '等待任务';
-  resultOutput.textContent = '还没有运行下载任务。';
+  summaryOutput.textContent = '还没有运行下载任务。';
+  resultOutput.textContent = '';
+  resultOutput.hidden = true;
+  detailToggle.hidden = true;
 });

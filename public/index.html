@@ -18,9 +18,21 @@
         </header>
 
         <form class="form" id="download-form">
+          <div class="options">
+            <label class="check-option">
+              <input id="uploader-mode-input" type="checkbox">
+              <span>按 UP 主爬取</span>
+            </label>
+          </div>
+
+          <label class="field">
+            <span>UP 主名称、ID 或空间链接</span>
+            <input id="uploader-input" name="uploader" autocomplete="off" placeholder="三七床车流浪中国 / 1350959407 / https://space.bilibili.com/1350959407">
+          </label>
+
           <label class="field">
             <span>视频链接或 BV 号</span>
-            <textarea id="video-input" class="video-list" name="video" autocomplete="off" placeholder="https://www.bilibili.com/video/BV...&#10;BV..." required></textarea>
+            <textarea id="video-input" class="video-list" name="video" autocomplete="off" placeholder="https://www.bilibili.com/video/BV...&#10;BV..."></textarea>
           </label>
 
           <label class="field">
@@ -71,7 +83,11 @@
           <h2>结果</h2>
           <span id="result-kind">等待任务</span>
         </div>
-        <pre id="result-output">还没有运行下载任务。</pre>
+        <div class="result-body">
+          <div id="summary-output" class="summary-output">还没有运行下载任务。</div>
+          <button type="button" class="secondary detail-toggle" id="detail-toggle" hidden>显示详情</button>
+          <pre id="result-output" hidden></pre>
+        </div>
       </aside>
     </main>
     <script src="/app.js"></script>

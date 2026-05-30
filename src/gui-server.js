@@ -4,6 +4,7 @@ const path = require('node:path');
 const { downloadBatchSubtitles, parseBatchInputs } = require('./batch-downloader');
 const { parseCookieText } = require('./cookie');
 const { downloadVideoSubtitles } = require('./downloader');
+const { downloadUploaderSubtitles } = require('./uploader');
 
 const MIME_TYPES = {
   '.html': 'text/html; charset=utf-8',
@@ -33,6 +34,7 @@ function createGuiServer(options = {}) {
   const publicDir = options.publicDir || path.join(__dirname, '..', 'public');
   const runDownload = options.downloadVideoSubtitles || downloadVideoSubtitles;
   const runBatchDownload = options.downloadBatchSubtitles || downloadBatchSubtitles;
+  const runUploaderDownload = options.downloadUploaderSubtitles || downloadUploaderSubtitles;
 
   return http.createServer(async (request, response) => {
     try {
@@ -40,13 +42,6 @@ function createGuiServer(options = {}) {
 
       if (request.method === 'POST' && url.pathname === '/api/download') {
         const body = await readRequestJson(request);
-        const input = String(body.input || '').trim();
-        if (!input) {
-          sendJson(response, 400, { error: 'Video URL or BV id is required.' });
-          return;
-        }
-
-        const inputs = parseBatchInputs(input);
         const commonOptions = {
           outputDir: String(body.outputDir || 'downloads').trim() || 'downloads',
           cookie: parseCookieText(body.cookieText || ''),
@@ -54,6 +49,28 @@ function createGuiServer(options = {}) {
           plainText: Boolean(body.plainText),
           renameByTitle: Boolean(body.renameByTitle),
         };
+        if (body.uploaderMode) {
+          const uploader = String(body.uploader || '').trim();
+          if (!uploader) {
+            sendJson(response, 400, { error: 'Uploader name, id, or space URL is required.' });
+            return;
+          }
+          const result = await runUploaderDownload({
+            ...commonOptions,
+            uploader,
+            delayMs: Number(body.delayMs || 800),
+          });
+          sendJson(response, 200, result);
+          return;
+        }
+
+        const input = String(body.input || '').trim();
+        if (!input) {
+          sendJson(response, 400, { error: 'Video URL or BV id is required.' });
+          return;
+        }
+
+        const inputs = parseBatchInputs(input);
         const result = inputs.length > 1 ? await runBatchDownload({
           ...commonOptions,
           inputs,

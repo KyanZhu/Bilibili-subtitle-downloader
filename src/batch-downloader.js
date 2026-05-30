@@ -25,13 +25,21 @@ function summarize(results) {
     noSubtitles: 0,
     authRequired: 0,
     errors: 0,
+    failedVideos: [],
   };
 
   for (const result of results) {
     if (result.status === 'downloaded') summary.downloaded += 1;
     if (result.status === 'no-subtitles') summary.noSubtitles += 1;
     if (result.status === 'auth-required') summary.authRequired += 1;
-    if (result.status === 'error') summary.errors += 1;
+    if (result.status === 'error') {
+      summary.errors += 1;
+      summary.failedVideos.push({
+        input: result.input || result.bvid || '',
+        url: result.input && result.input.startsWith('BV') ? `https://www.bilibili.com/video/${result.input}` : (result.input || ''),
+        error: result.error || '',
+      });
+    }
   }
 
   return summary;

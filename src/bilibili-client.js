@@ -1,6 +1,9 @@
+const { createWbiSigner, extractWbiKeyPart } = require('./wbi');
+
 function createBilibiliClient(options = {}) {
   const fetchImpl = options.fetch || globalThis.fetch;
   const cookie = options.cookie || '';
+  let wbiSignerPromise = null;
 
   if (!fetchImpl) {
     throw new Error('This Node.js runtime does not provide fetch.');
@@ -9,7 +12,7 @@ function createBilibiliClient(options = {}) {
   function headersFor(bvid) {
     const headers = {
       'User-Agent': 'Mozilla/5.0 BilibiliSubtitleDownloader/0.1',
-      Referer: `https://www.bilibili.com/video/${bvid}`,
+      Referer: bvid ? `https://www.bilibili.com/video/${bvid}` : 'https://www.bilibili.com/',
     };
     if (cookie) {
       headers.Cookie = cookie;
@@ -29,6 +32,32 @@ function createBilibiliClient(options = {}) {
     return payload.data;
   }
 
+  function toQuery(params) {
+    return Object.keys(params)
+      .filter((key) => params[key] !== undefined && params[key] !== null && params[key] !== '')
+      .map((key) => `${encodeURIComponent(key)}=${encodeURIComponent(String(params[key]))}`)
+      .join('&');
+  }
+
+  async function getWbiSigner() {
+    if (!wbiSignerPromise) {
+      wbiSignerPromise = getJson('https://api.bilibili.com/x/web-interface/nav', '', 'nav').then((data) => {
+        const wbiImg = data.wbi_img || {};
+        return createWbiSigner({
+          imgKey: extractWbiKeyPart(wbiImg.img_url),
+          subKey: extractWbiKeyPart(wbiImg.sub_url),
+        });
+      });
+    }
+    return wbiSignerPromise;
+  }
+
+  async function getSignedJson(baseUrl, params, bvid, label) {
+    const signer = await getWbiSigner();
+    const signed = signer.sign(params);
+    return getJson(`${baseUrl}?${toQuery(signed)}`, bvid || '', label);
+  }
+
   return {
     normalizeSubtitleUrl(url) {
       if (url.startsWith('//')) {
@@ -45,6 +74,50 @@ function createBilibiliClient(options = {}) {
     getVideoInfo(bvid) {
       const url = `https://api.bilibili.com/x/web-interface/view?bvid=${encodeURIComponent(bvid)}`;
       return getJson(url, bvid, 'view');
+    },
+
+    async getUploaderInfo(mid) {
+      return getSignedJson('https://api.bilibili.com/x/space/wbi/acc/info', { mid }, '', 'uploader info');
+    },
+
+    async getUploaderVideos(mid, options = {}) {
+      const pageSize = options.pageSize || 30;
+      const maxPages = options.maxPages || 20;
+      const videos = [];
+      let total = 0;
+
+      for (let page = 1; page <= maxPages; page += 1) {
+        const data = await getSignedJson('https://api.bilibili.com/x/space/wbi/arc/search', {
+          mid,
+          pn: page,
+          ps: pageSize,
+          order: 'pubdate',
+        }, '', 'uploader videos');
+        const list = (((data || {}).list || {}).vlist || []);
+        total = Number((((data || {}).page || {}).count) || total || list.length);
+        videos.push(...list.map((item) => ({
+          bvid: item.bvid,
+          aid: item.aid,
+          title: item.title,
+          created: item.created,
+        })));
+        if (videos.length >= total || list.length < pageSize) {
+          break;
+        }
+      }
+
+      return { total, videos };
+    },
+
+    async resolveUploaderByName(name) {
+      const url = `https://api.bilibili.com/x/web-interface/search/type?search_type=bili_user&keyword=${encodeURIComponent(name)}&page=1`;
+      const data = await getJson(url, '', 'user search');
+      const users = Array.isArray(data.result) ? data.result : [];
+      const exact = users.find((user) => user.uname === name) || users[0];
+      if (!exact) {
+        throw new Error(`Could not resolve uploader name: ${name}`);
+      }
+      return { mid: exact.mid, name: exact.uname };
     },
 
     getPlayerInfo(bvid, cid) {

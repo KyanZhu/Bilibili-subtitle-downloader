@@ -46,4 +46,11 @@ test('keeps batch running when one item fails', async () => {
   assert.equal(result.results[0].status, 'no-subtitles');
   assert.equal(result.results[1].status, 'error');
   assert.equal(result.summary.errors, 1);
+  assert.deepEqual(result.summary.failedVideos, [
+    {
+      input: 'bad-input',
+      url: 'bad-input',
+      error: 'broken',
+    },
+  ]);
 });
