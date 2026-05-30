@@ -55,18 +55,20 @@ async function downloadBatchSubtitles(options) {
   const results = [];
 
   for (let index = 0; index < inputs.length; index += 1) {
-    const input = inputs[index];
+    const item = inputs[index];
+    const input = typeof item === 'string' ? item : item.input;
     try {
       results.push(await runDownload({
         input,
-        outputDir: options.outputDir,
+        outputDir: item.outputDir || options.outputDir,
         cookie: options.cookie,
         chineseOnly: options.chineseOnly,
         plainText: options.plainText,
         renameByTitle: options.renameByTitle,
         downloadAudioWhenNoSubtitles: options.downloadAudioWhenNoSubtitles,
-        useDateFolder: options.useDateFolder,
-        now: options.now,
+        useDateFolder: item.useDateFolder !== undefined ? item.useDateFolder : options.useDateFolder,
+        videoFolderName: item.videoFolderName,
+        now: item.now || options.now,
         client: options.client,
       }));
     } catch (error) {

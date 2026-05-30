@@ -51,7 +51,8 @@ async function downloadVideoSubtitles(options) {
     : withDateFolder(options.outputDir || 'downloads', options.now);
   const client = options.client || createBilibiliClient({ cookie: options.cookie });
   const bvid = extractBvid(input);
-  const videoDir = path.join(outputDir, bvid);
+  const videoFolderName = sanitizeName(options.videoFolderName || bvid) || bvid;
+  const videoDir = path.join(outputDir, videoFolderName);
   const subtitlesDir = path.join(videoDir, 'subtitles');
   const downloaded = [];
   const audio = [];

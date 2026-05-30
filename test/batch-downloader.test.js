@@ -55,6 +55,24 @@ test('keeps batch running when one item fails', async () => {
   ]);
 });
 
+test('passes per-video folder names to downloader', async () => {
+  const calls = [];
+
+  await downloadBatchSubtitles({
+    inputs: [{ input: 'BV1111111111', videoFolderName: '2026-05-08_Title' }],
+    outputDir: 'downloads',
+    delayMs: 0,
+    downloadVideoSubtitles: async (options) => {
+      calls.push(options);
+      return { bvid: options.input, status: 'downloaded', downloaded: [] };
+    },
+  });
+
+  assert.equal(calls[0].input, 'BV1111111111');
+  assert.equal(calls[0].outputDir, 'downloads');
+  assert.equal(calls[0].videoFolderName, '2026-05-08_Title');
+});
+
 test('summarizes audio fallback downloads', () => {
   const summary = summarize([
     { input: 'BV_AUDIO', status: 'audio-downloaded' },

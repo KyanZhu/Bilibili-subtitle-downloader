@@ -2,8 +2,8 @@ const path = require('node:path');
 const fs = require('node:fs/promises');
 const { downloadBatchSubtitles } = require('./batch-downloader');
 const { createBilibiliClient } = require('./bilibili-client');
-const { sanitizeName } = require('./downloader');
-const { withDateFolder } = require('./output-paths');
+const { sanitizeName, sanitizeTitleFilename } = require('./downloader');
+const { dateFolderName } = require('./output-paths');
 
 function parseUploaderInput(input) {
   const text = String(input || '').trim();
@@ -34,6 +34,14 @@ async function resolveUploader(input, client) {
   };
 }
 
+function publishedDateFolderName(video, fallbackDate = new Date()) {
+  const publishedAt = Number(video.created || video.pubdate || 0);
+  const date = publishedAt > 0 ? new Date(publishedAt * 1000) : fallbackDate;
+  const datePart = dateFolderName(date);
+  const label = sanitizeTitleFilename(video.title || video.bvid || '');
+  return label ? `${datePart}_${label}` : datePart;
+}
+
 async function downloadUploaderSubtitles(options) {
   const client = options.client || createBilibiliClient({ cookie: options.cookie });
   const uploader = await resolveUploader(options.uploader, client);
@@ -47,8 +55,7 @@ async function downloadUploaderSubtitles(options) {
     if (options.publishedBefore && publishedAt > options.publishedBefore) return false;
     return true;
   });
-  const baseOutputDir = options.groupByDate ? withDateFolder(options.outputDir || 'downloads', options.now) : (options.outputDir || 'downloads');
-  const uploaderOutputDir = path.join(baseOutputDir, sanitizeName(uploader.name));
+  const uploaderOutputDir = path.join(options.outputDir || 'downloads', sanitizeName(uploader.name));
   const skippedVideos = [];
   const videosToDownload = [];
 
@@ -56,9 +63,10 @@ async function downloadUploaderSubtitles(options) {
     if (!video.bvid) {
       continue;
     }
+    const folderName = options.groupByDate ? publishedDateFolderName(video, options.now) : video.bvid;
     if (options.incrementalUpdate) {
       try {
-        await fs.access(path.join(uploaderOutputDir, video.bvid));
+        await fs.access(path.join(uploaderOutputDir, folderName));
         skippedVideos.push(video);
         continue;
       } catch (error) {
@@ -67,10 +75,14 @@ async function downloadUploaderSubtitles(options) {
         }
       }
     }
-    videosToDownload.push(video);
+    videosToDownload.push({ video, folderName });
   }
 
-  const inputs = videosToDownload.map((video) => video.bvid);
+  const inputs = videosToDownload.map(({ video, folderName }) => (
+    options.groupByDate
+      ? { input: video.bvid, videoFolderName: folderName }
+      : video.bvid
+  ));
   const batch = await (options.downloadBatchSubtitles || downloadBatchSubtitles)({
     inputs,
     outputDir: uploaderOutputDir,

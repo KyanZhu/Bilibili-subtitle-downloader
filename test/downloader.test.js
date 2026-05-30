@@ -48,6 +48,30 @@ test('uses a date folder under downloads by default', async () => {
   assert.match(result.downloaded[0].assPath, /BV1Jh5d68Er3/);
 });
 
+test('uses custom video folder names when provided', async () => {
+  const temp = await fs.mkdtemp(path.join(os.tmpdir(), 'bili-sub-'));
+  const client = {
+    getPages: async () => [{ cid: 123, page: 1, part: 'Part One' }],
+    getPlayerInfo: async () => ({
+      subtitle: {
+        subtitles: [{ lan: 'zh-Hans', subtitle_url: '//example.com/sub.json' }],
+      },
+    }),
+    downloadSubtitle: async () => ({ body: [{ from: 0, to: 1, content: 'hello' }] }),
+  };
+
+  const result = await downloadVideoSubtitles({
+    input: 'BV1Jh5d68Er3',
+    outputDir: temp,
+    useDateFolder: false,
+    videoFolderName: '2026-05-08_Title',
+    client,
+  });
+
+  assert.match(result.downloaded[0].assPath, /2026-05-08_Title/);
+  assert.doesNotMatch(result.downloaded[0].assPath, /BV1Jh5d68Er3/);
+});
+
 test('filters to chinese subtitle tracks when requested', async () => {
   const temp = await fs.mkdtemp(path.join(os.tmpdir(), 'bili-sub-'));
   const downloadedUrls = [];
