@@ -21,6 +21,18 @@ function subtitleLanguageName(subtitle) {
   return sanitizeName(subtitle.lan || subtitle.lan_doc || 'unknown') || 'unknown';
 }
 
+function audioExtension(audio) {
+  const mimeType = String(audio && audio.mimeType ? audio.mimeType : '').toLowerCase();
+  if (mimeType.includes('mp4')) return 'm4a';
+  if (mimeType.includes('mpeg')) return 'mp3';
+  return 'm4s';
+}
+
+function selectBestAudio(playUrl) {
+  const audioTracks = (((playUrl || {}).dash || {}).audio || []).filter((item) => item && (item.baseUrl || item.base_url));
+  return audioTracks.sort((left, right) => Number(right.bandwidth || 0) - Number(left.bandwidth || 0))[0];
+}
+
 function isChineseSubtitle(subtitle) {
   const language = String(subtitle.lan || '').toLowerCase();
   const label = String(subtitle.lan_doc || '').toLowerCase();
@@ -39,6 +51,7 @@ async function downloadVideoSubtitles(options) {
   const videoDir = path.join(outputDir, bvid);
   const subtitlesDir = path.join(videoDir, 'subtitles');
   const downloaded = [];
+  const audio = [];
   const pagesMetadata = [];
 
   await fs.mkdir(subtitlesDir, { recursive: true });
@@ -98,7 +111,35 @@ async function downloadVideoSubtitles(options) {
     pagesMetadata.push(pageRecord);
   }
 
-  const status = downloaded.length > 0 ? 'downloaded' : (needsAuthenticatedSubtitleAccess ? 'auth-required' : 'no-subtitles');
+  let status = downloaded.length > 0 ? 'downloaded' : (needsAuthenticatedSubtitleAccess ? 'auth-required' : 'no-subtitles');
+  if (status === 'no-subtitles' && options.downloadAudioWhenNoSubtitles) {
+    for (const page of normalizedPages) {
+      const pageNumber = Number(page.page || audio.length + 1);
+      const pageLabel = `p${String(pageNumber).padStart(2, '0')}`;
+      const playUrl = await client.getPlayUrl(bvid, page.cid);
+      const bestAudio = selectBestAudio(playUrl);
+      if (!bestAudio) {
+        continue;
+      }
+      const audioUrl = bestAudio.baseUrl || bestAudio.base_url;
+      const extension = audioExtension(bestAudio);
+      const audioDir = path.join(videoDir, 'audio');
+      const audioPath = path.join(audioDir, `${titlePrefix}${pageLabel}-audio.${extension}`);
+      await fs.mkdir(audioDir, { recursive: true });
+      await fs.writeFile(audioPath, await client.downloadBinary(audioUrl, bvid));
+      audio.push({
+        page: pageNumber,
+        cid: page.cid,
+        path: audioPath,
+        url: audioUrl,
+        bandwidth: bestAudio.bandwidth,
+        mimeType: bestAudio.mimeType,
+      });
+    }
+    if (audio.length > 0) {
+      status = 'audio-downloaded';
+    }
+  }
   const metadata = {
     bvid,
     title,
@@ -108,6 +149,7 @@ async function downloadVideoSubtitles(options) {
     downloadedAt: new Date().toISOString(),
     pages: pagesMetadata,
     downloaded,
+    audio,
   };
   await writeJson(path.join(videoDir, 'metadata.json'), metadata);
 

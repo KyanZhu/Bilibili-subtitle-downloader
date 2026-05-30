@@ -125,12 +125,25 @@ function createBilibiliClient(options = {}) {
       return getJson(url, bvid, 'player');
     },
 
+    getPlayUrl(bvid, cid) {
+      const url = `https://api.bilibili.com/x/player/playurl?bvid=${encodeURIComponent(bvid)}&cid=${encodeURIComponent(cid)}&fnval=4048&fourk=1`;
+      return getJson(url, bvid, 'playurl');
+    },
+
     async downloadSubtitle(url, bvid) {
       const response = await fetchImpl(this.normalizeSubtitleUrl(url), { headers: headersFor(bvid) });
       if (!response.ok) {
         throw new Error(`subtitle download failed: HTTP ${response.status}`);
       }
       return response.json();
+    },
+
+    async downloadBinary(url, bvid) {
+      const response = await fetchImpl(this.normalizeSubtitleUrl(url), { headers: headersFor(bvid) });
+      if (!response.ok) {
+        throw new Error(`binary download failed: HTTP ${response.status}`);
+      }
+      return Buffer.from(await response.arrayBuffer());
     },
   };
 }

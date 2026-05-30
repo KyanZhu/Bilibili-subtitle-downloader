@@ -22,6 +22,7 @@ function summarize(results) {
   const summary = {
     total: results.length,
     downloaded: 0,
+    audioDownloaded: 0,
     noSubtitles: 0,
     authRequired: 0,
     errors: 0,
@@ -30,6 +31,7 @@ function summarize(results) {
 
   for (const result of results) {
     if (result.status === 'downloaded') summary.downloaded += 1;
+    if (result.status === 'audio-downloaded') summary.audioDownloaded += 1;
     if (result.status === 'no-subtitles') summary.noSubtitles += 1;
     if (result.status === 'auth-required') summary.authRequired += 1;
     if (result.status === 'error') {
@@ -62,6 +64,7 @@ async function downloadBatchSubtitles(options) {
         chineseOnly: options.chineseOnly,
         plainText: options.plainText,
         renameByTitle: options.renameByTitle,
+        downloadAudioWhenNoSubtitles: options.downloadAudioWhenNoSubtitles,
         client: options.client,
       }));
     } catch (error) {

@@ -60,6 +60,7 @@ test('download api forwards batch options to batch downloader', async () => {
         chineseOnly: true,
         plainText: true,
         renameByTitle: true,
+        downloadAudioWhenNoSubtitles: true,
         delayMs: 300,
       }),
     });
@@ -72,6 +73,7 @@ test('download api forwards batch options to batch downloader', async () => {
     assert.equal(received.chineseOnly, true);
     assert.equal(received.plainText, true);
     assert.equal(received.renameByTitle, true);
+    assert.equal(received.downloadAudioWhenNoSubtitles, true);
     assert.equal(received.delayMs, 300);
   } finally {
     server.close();

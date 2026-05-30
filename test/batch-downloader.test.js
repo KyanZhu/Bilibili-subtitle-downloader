@@ -1,6 +1,6 @@
 const test = require('node:test');
 const assert = require('node:assert/strict');
-const { downloadBatchSubtitles, parseBatchInputs } = require('../src/batch-downloader');
+const { downloadBatchSubtitles, parseBatchInputs, summarize } = require('../src/batch-downloader');
 
 test('parses batch inputs from lines and removes duplicates', () => {
   assert.deepEqual(parseBatchInputs('BV1111111111\n\nBV2222222222\nBV1111111111'), [
@@ -53,4 +53,14 @@ test('keeps batch running when one item fails', async () => {
       error: 'broken',
     },
   ]);
+});
+
+test('summarizes audio fallback downloads', () => {
+  const summary = summarize([
+    { input: 'BV_AUDIO', status: 'audio-downloaded' },
+    { input: 'BV_NO_SUBS', status: 'no-subtitles' },
+  ]);
+
+  assert.equal(summary.audioDownloaded, 1);
+  assert.equal(summary.noSubtitles, 1);
 });

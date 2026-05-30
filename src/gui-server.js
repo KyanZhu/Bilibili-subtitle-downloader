@@ -64,6 +64,7 @@ function createGuiServer(options = {}) {
           chineseOnly: Boolean(body.chineseOnly),
           plainText: Boolean(body.plainText),
           renameByTitle: Boolean(body.renameByTitle),
+          downloadAudioWhenNoSubtitles: Boolean(body.downloadAudioWhenNoSubtitles),
         };
         if (body.uploaderMode) {
           const uploader = String(body.uploader || '').trim();

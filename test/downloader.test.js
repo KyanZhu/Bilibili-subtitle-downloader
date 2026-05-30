@@ -99,6 +99,39 @@ test('records no-subtitle videos without throwing', async () => {
   assert.equal(metadata.status, 'no-subtitles');
 });
 
+test('downloads highest bandwidth audio when no subtitles and fallback is enabled', async () => {
+  const temp = await fs.mkdtemp(path.join(os.tmpdir(), 'bili-sub-'));
+  const downloaded = [];
+  const client = {
+    getPages: async () => [{ cid: 456, page: 1, part: 'Only Part' }],
+    getPlayerInfo: async () => ({ subtitle: { subtitles: [] } }),
+    getPlayUrl: async () => ({
+      dash: {
+        audio: [
+          { baseUrl: 'https://example.com/low.m4s', bandwidth: 64000, mimeType: 'audio/mp4' },
+          { baseUrl: 'https://example.com/high.m4s', bandwidth: 128000, mimeType: 'audio/mp4' },
+        ],
+      },
+    }),
+    downloadBinary: async (url) => {
+      downloaded.push(url);
+      return Buffer.from('fake audio');
+    },
+  };
+
+  const result = await downloadVideoSubtitles({
+    input: 'BV1vBdMBREtm',
+    outputDir: temp,
+    client,
+    downloadAudioWhenNoSubtitles: true,
+  });
+
+  assert.equal(result.status, 'audio-downloaded');
+  assert.deepEqual(downloaded, ['https://example.com/high.m4s']);
+  assert.equal(result.audio.length, 1);
+  assert.equal(await fs.readFile(result.audio[0].path, 'utf8'), 'fake audio');
+});
+
 test('records auth-required when subtitles require login or purchase', async () => {
   const temp = await fs.mkdtemp(path.join(os.tmpdir(), 'bili-sub-'));
   const client = {

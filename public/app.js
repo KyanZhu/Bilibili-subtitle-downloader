@@ -10,6 +10,7 @@ const endDateInput = document.querySelector('#end-date-input');
 const chineseOnlyInput = document.querySelector('#chinese-only-input');
 const plainTextInput = document.querySelector('#plain-text-input');
 const renameByTitleInput = document.querySelector('#rename-by-title-input');
+const audioFallbackInput = document.querySelector('#audio-fallback-input');
 const delayInput = document.querySelector('#delay-input');
 const statusEl = document.querySelector('#status');
 const resultKind = document.querySelector('#result-kind');
@@ -53,6 +54,7 @@ function summarizePayload(payload) {
       lines.push(`符合时间范围：${payload.filteredVideos}`);
     }
     lines.push(`成功下载：${summary.downloaded || 0}`);
+    lines.push(`音频下载：${summary.audioDownloaded || 0}`);
     lines.push(`下载失败：${summary.errors || 0}`);
     lines.push(`没有字幕：${summary.noSubtitles || 0}`);
     lines.push(`需要权限：${summary.authRequired || 0}`);
@@ -73,6 +75,7 @@ function summarizePayload(payload) {
   lines.push(`视频：${payload.bvid ? videoUrl(payload.bvid) : payload.input || ''}`);
   lines.push(`状态：${payload.status || 'unknown'}`);
   lines.push(`成功下载：${payload.status === 'downloaded' ? payload.downloaded.length : 0}`);
+  lines.push(`音频下载：${payload.status === 'audio-downloaded' ? payload.audio.length : 0}`);
   lines.push(`没有字幕：${payload.status === 'no-subtitles' ? 1 : 0}`);
   lines.push(`需要权限：${payload.status === 'auth-required' ? 1 : 0}`);
   if (payload.downloaded && payload.downloaded.length > 0) {
@@ -81,6 +84,13 @@ function summarizePayload(payload) {
     for (const item of payload.downloaded) {
       lines.push(`- ${item.assPath}`);
       if (item.txtPath) lines.push(`- ${item.txtPath}`);
+    }
+  }
+  if (payload.audio && payload.audio.length > 0) {
+    lines.push('');
+    lines.push('音频：');
+    for (const item of payload.audio) {
+      lines.push(`- ${item.path}`);
     }
   }
   return lines.join('\n');
@@ -144,6 +154,7 @@ form.addEventListener('submit', async (event) => {
         chineseOnly: chineseOnlyInput.checked,
         plainText: plainTextInput.checked,
         renameByTitle: renameByTitleInput.checked,
+        downloadAudioWhenNoSubtitles: audioFallbackInput.checked,
         delayMs: Number(delayInput.value || 800),
       }),
     });
@@ -159,6 +170,9 @@ form.addEventListener('submit', async (event) => {
     } else if (payload.status === 'downloaded') {
       setStatus('Done', 'is-done');
       showResult('已下载', payload);
+    } else if (payload.status === 'audio-downloaded') {
+      setStatus('Done', 'is-done');
+      showResult('已下载音频', payload);
     } else if (payload.status === 'auth-required') {
       setStatus('Need Cookie', 'is-error');
       showResult('需要权限', payload);
