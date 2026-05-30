@@ -1,5 +1,6 @@
 const form = document.querySelector('#download-form');
-const uploaderModeInput = document.querySelector('#uploader-mode-input');
+const tabButtons = Array.from(document.querySelectorAll('.tab-button'));
+const tabPanels = Array.from(document.querySelectorAll('.tab-panel'));
 const uploaderInput = document.querySelector('#uploader-input');
 const videoInput = document.querySelector('#video-input');
 const cookieInput = document.querySelector('#cookie-input');
@@ -20,6 +21,7 @@ const clearButton = document.querySelector('#clear-button');
 
 let lastPayload = null;
 let detailsVisible = false;
+let activeTab = 'video';
 
 function setStatus(label, className) {
   statusEl.className = `status ${className || ''}`.trim();
@@ -99,8 +101,30 @@ function showResult(kind, payload, options = {}) {
   updateDetailVisibility();
 }
 
+function setActiveTab(tabName) {
+  activeTab = tabName;
+  for (const button of tabButtons) {
+    button.classList.toggle('is-active', button.dataset.tab === tabName);
+  }
+  for (const panel of tabPanels) {
+    const isActive = panel.dataset.panel === tabName;
+    panel.classList.toggle('is-active', isActive);
+    panel.hidden = !isActive;
+  }
+}
+
+for (const button of tabButtons) {
+  button.addEventListener('click', () => {
+    setActiveTab(button.dataset.tab);
+  });
+}
+
 form.addEventListener('submit', async (event) => {
   event.preventDefault();
+  if (activeTab === 'subscriptions') {
+    showResult('订阅更新', '订阅列表会在后续提交中接入。');
+    return;
+  }
   downloadButton.disabled = true;
   setStatus('Running', 'is-running');
   showResult('下载中', '正在串行请求 Bilibili 接口，请稍等...');
@@ -111,7 +135,7 @@ form.addEventListener('submit', async (event) => {
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({
         input: videoInput.value,
-        uploaderMode: uploaderModeInput.checked,
+        uploaderMode: activeTab === 'uploader',
         uploader: uploaderInput.value,
         cookieText: cookieInput.value,
         outputDir: outputInput.value,

@@ -17,23 +17,44 @@
           <div class="status" id="status">Ready</div>
         </header>
 
+        <nav class="tabs" aria-label="下载模式">
+          <button type="button" class="tab-button is-active" data-tab="video">视频下载</button>
+          <button type="button" class="tab-button" data-tab="uploader">UP 主下载</button>
+          <button type="button" class="tab-button" data-tab="subscriptions">订阅更新</button>
+        </nav>
+
         <form class="form" id="download-form">
-          <div class="options">
-            <label class="check-option">
-              <input id="uploader-mode-input" type="checkbox">
-              <span>按 UP 主爬取</span>
+          <section class="tab-panel is-active" data-panel="video">
+            <label class="field">
+              <span>视频链接或 BV 号</span>
+              <textarea id="video-input" class="video-list" name="video" autocomplete="off" placeholder="https://www.bilibili.com/video/BV...&#10;BV..."></textarea>
             </label>
-          </div>
+          </section>
 
-          <label class="field">
-            <span>UP 主名称、ID 或空间链接</span>
-            <input id="uploader-input" name="uploader" autocomplete="off" placeholder="三七床车流浪中国 / 1350959407 / https://space.bilibili.com/1350959407">
-          </label>
+          <section class="tab-panel" data-panel="uploader" hidden>
+            <label class="field">
+              <span>UP 主名称、ID 或空间链接</span>
+              <input id="uploader-input" name="uploader" autocomplete="off" placeholder="三七床车流浪中国 / 1350959407 / https://space.bilibili.com/1350959407">
+            </label>
 
-          <label class="field">
-            <span>视频链接或 BV 号</span>
-            <textarea id="video-input" class="video-list" name="video" autocomplete="off" placeholder="https://www.bilibili.com/video/BV...&#10;BV..."></textarea>
-          </label>
+            <div class="date-grid" aria-label="发布时间过滤">
+              <label class="field">
+                <span>开始日期</span>
+                <input id="start-date-input" name="startDate" type="date">
+              </label>
+              <label class="field">
+                <span>结束日期</span>
+                <input id="end-date-input" name="endDate" type="date">
+              </label>
+            </div>
+          </section>
+
+          <section class="tab-panel" data-panel="subscriptions" hidden>
+            <div class="empty-state">
+              <h2>订阅更新</h2>
+              <p>订阅列表会在后续提交中接入；这里将用于一键更新多个 UP 主。</p>
+            </div>
+          </section>
 
           <label class="field">
             <span>Cookies</span>
@@ -44,17 +65,6 @@
             <span>输出目录</span>
             <input id="output-input" name="output" value="downloads">
           </label>
-
-          <div class="date-grid" aria-label="发布时间过滤">
-            <label class="field">
-              <span>开始日期</span>
-              <input id="start-date-input" name="startDate" type="date">
-            </label>
-            <label class="field">
-              <span>结束日期</span>
-              <input id="end-date-input" name="endDate" type="date">
-            </label>
-          </div>
 
           <div class="options">
             <label class="check-option">

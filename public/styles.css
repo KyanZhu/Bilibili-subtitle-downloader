@@ -77,6 +77,31 @@ h2 {
   line-height: 1.6;
 }
 
+.tabs {
+  display: flex;
+  gap: 8px;
+  margin-bottom: 18px;
+  padding: 4px;
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  background: var(--surface-2);
+}
+
+.tab-button {
+  flex: 1 1 0;
+  min-height: 38px;
+  border-color: transparent;
+  background: transparent;
+  color: var(--muted);
+}
+
+.tab-button:hover,
+.tab-button.is-active {
+  border-color: var(--accent);
+  background: #fff;
+  color: var(--accent-strong);
+}
+
 .status,
 #result-kind {
   flex: 0 0 auto;
@@ -103,6 +128,11 @@ h2 {
 }
 
 .form {
+  display: grid;
+  gap: 18px;
+}
+
+.tab-panel {
   display: grid;
   gap: 18px;
 }
@@ -168,6 +198,21 @@ textarea:focus {
   display: grid;
   grid-template-columns: repeat(2, minmax(0, 180px));
   gap: 14px;
+}
+
+.empty-state {
+  display: grid;
+  gap: 8px;
+  padding: 18px;
+  border: 1px dashed var(--border);
+  border-radius: 8px;
+  background: var(--surface-2);
+}
+
+.empty-state p {
+  color: var(--muted);
+  font-size: 13px;
+  line-height: 1.6;
 }
 
 .options {
@@ -294,6 +339,10 @@ button.secondary:hover {
   }
 
   .header {
+    flex-direction: column;
+  }
+
+  .tabs {
     flex-direction: column;
   }
 
