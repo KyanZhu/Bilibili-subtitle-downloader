@@ -195,7 +195,15 @@ test('subscriptions api lists, adds, removes, and updates subscriptions', async 
       return { removed: 1 };
     },
     updateSubscriptions: async (options) => {
-      calls.push(['update', options.outputDir, options.cookie, options.incrementalUpdate, options.groupByDate]);
+      calls.push([
+        'update',
+        options.outputDir,
+        options.cookie,
+        options.incrementalUpdate,
+        options.groupByDate,
+        options.publishedAfter,
+        options.publishedBefore,
+      ]);
       return { status: 'completed', summary: { total: 1, updated: 1, errors: 0 }, results: [] };
     },
   });
@@ -221,10 +229,12 @@ test('subscriptions api lists, adds, removes, and updates subscriptions', async 
         outputDir: 'downloads',
         cookieText: '.bilibili.com\tTRUE\t/\tTRUE\t1785224583\tSESSDATA\tabc',
         groupByDate: true,
+        startDate: '2026-05-08',
+        endDate: '2026-05-09',
       }),
     });
     assert.equal(response.status, 200);
-    assert.deepEqual(calls[0], ['update', 'downloads', 'SESSDATA=abc', true, true]);
+    assert.deepEqual(calls[0], ['update', 'downloads', 'SESSDATA=abc', true, true, 1778198400, 1778371199]);
 
     response = await fetch(`http://127.0.0.1:${port}/api/subscriptions/1350959407`, { method: 'DELETE' });
     assert.equal(response.status, 200);
