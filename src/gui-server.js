@@ -87,10 +87,23 @@ function createGuiServer(options = {}) {
   const runRemoveSubscription = options.removeSubscription || removeSubscription;
   const runUpdateSubscriptions = options.updateSubscriptions || updateSubscriptions;
   const runOpenFolder = options.openFolder || openFolder;
+  const runShutdown = options.shutdown;
 
-  return http.createServer(async (request, response) => {
+  const server = http.createServer(async (request, response) => {
     try {
       const url = new URL(request.url, 'http://127.0.0.1');
+
+      if (request.method === 'POST' && url.pathname === '/api/shutdown') {
+        sendJson(response, 200, { stopping: true });
+        setTimeout(() => {
+          if (runShutdown) {
+            runShutdown();
+            return;
+          }
+          server.close(() => process.exit(0));
+        }, 50);
+        return;
+      }
 
       if (request.method === 'POST' && url.pathname === '/api/open-folder') {
         const body = await readRequestJson(request);
@@ -215,6 +228,8 @@ function createGuiServer(options = {}) {
       sendJson(response, statusCode, { error: error.message || String(error) });
     }
   });
+
+  return server;
 }
 
 module.exports = { createGuiServer };

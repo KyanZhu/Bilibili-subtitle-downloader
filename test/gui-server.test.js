@@ -293,3 +293,27 @@ test('open output folder api falls back to downloads when output is blank', asyn
     server.close();
   }
 });
+
+test('shutdown api invokes configured shutdown handler', async () => {
+  let shutdownCalled = false;
+  const server = createGuiServer({
+    shutdown: () => {
+      shutdownCalled = true;
+    },
+  });
+  const port = await listen(server);
+
+  try {
+    const response = await fetch(`http://127.0.0.1:${port}/api/shutdown`, {
+      method: 'POST',
+    });
+    const payload = await response.json();
+
+    assert.equal(response.status, 200);
+    assert.equal(payload.stopping, true);
+    await new Promise((resolve) => setTimeout(resolve, 80));
+    assert.equal(shutdownCalled, true);
+  } finally {
+    server.close();
+  }
+});

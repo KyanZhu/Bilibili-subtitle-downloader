@@ -21,6 +21,7 @@ const summaryOutput = document.querySelector('#summary-output');
 const resultOutput = document.querySelector('#result-output');
 const detailToggle = document.querySelector('#detail-toggle');
 const downloadButton = document.querySelector('#download-button');
+const shutdownButton = document.querySelector('#shutdown-button');
 const clearButton = document.querySelector('#clear-button');
 const subscriptionInput = document.querySelector('#subscription-input');
 const addSubscriptionButton = document.querySelector('#add-subscription-button');
@@ -61,7 +62,12 @@ function addSummaryTotals(total, summary) {
   total.failedVideos.push(...(summary.failedVideos || []));
 }
 
-function commonPayload() {
+function currentTab() {
+  const activeButton = tabButtons.find((button) => button.classList.contains('is-active'));
+  return activeButton ? activeButton.dataset.tab : activeTab;
+}
+
+function commonPayload(tabName = currentTab()) {
   return {
     cookieText: cookieInput.value,
     outputDir: outputInput.value,
@@ -70,7 +76,7 @@ function commonPayload() {
     renameByTitle: renameByTitleInput.checked,
     downloadAudioWhenNoSubtitles: audioFallbackInput.checked,
     incrementalUpdate: incrementalUpdateInput.checked,
-    groupByDate: activeTab !== 'video' && groupByDateInput.checked,
+    groupByDate: tabName !== 'video' && groupByDateInput.checked,
     delayMs: Number(delayInput.value || 800),
     startDate: startDateInput.value,
     endDate: endDateInput.value,
@@ -201,6 +207,7 @@ function showResult(kind, payload, options = {}) {
 function setActiveTab(tabName) {
   activeTab = tabName;
   form.classList.toggle('is-video-mode', tabName === 'video');
+  downloadButton.lastChild.textContent = tabName === 'subscriptions' ? ' 更新订阅' : ' 开始下载';
   for (const button of tabButtons) {
     button.classList.toggle('is-active', button.dataset.tab === tabName);
   }
@@ -222,7 +229,9 @@ for (const button of tabButtons) {
 
 form.addEventListener('submit', async (event) => {
   event.preventDefault();
-  if (activeTab === 'subscriptions') {
+  const tabName = currentTab();
+  activeTab = tabName;
+  if (tabName === 'subscriptions') {
     downloadButton.disabled = true;
     setStatus('Running', 'is-running');
     showResult('订阅更新中', '正在串行更新订阅 UP 主...');
@@ -230,7 +239,7 @@ form.addEventListener('submit', async (event) => {
       const response = await fetch('/api/subscriptions/update', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify(commonPayload()),
+        body: JSON.stringify(commonPayload(tabName)),
       });
       const payload = await response.json();
       if (!response.ok) throw new Error(payload.error || `HTTP ${response.status}`);
@@ -253,9 +262,9 @@ form.addEventListener('submit', async (event) => {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({
-        ...commonPayload(),
+        ...commonPayload(tabName),
         input: videoInput.value,
-        uploaderMode: activeTab === 'uploader',
+        uploaderMode: tabName === 'uploader',
         uploader: uploaderInput.value,
       }),
     });
@@ -286,6 +295,17 @@ form.addEventListener('submit', async (event) => {
     showResult('错误', error.message || String(error));
   } finally {
     downloadButton.disabled = false;
+  }
+});
+
+shutdownButton.addEventListener('click', async () => {
+  shutdownButton.disabled = true;
+  setStatus('Stopping', 'is-running');
+  showResult('正在停止服务', '服务正在关闭。关闭后刷新页面会无法连接，重新运行 GUI 后即可继续使用。');
+  try {
+    await fetch('/api/shutdown', { method: 'POST' });
+  } catch (error) {
+    // The request can be interrupted because the server is shutting down.
   }
 });
 
