@@ -144,7 +144,7 @@ function showResult(kind, payload, options = {}) {
   resultKind.textContent = kind;
   summaryOutput.textContent = typeof payload === 'string' ? payload : summarizePayload(payload);
   resultOutput.textContent = typeof payload === 'string' ? payload : JSON.stringify(payload, null, 2);
-  detailToggle.hidden = typeof payload === 'string' || !payload;
+  detailToggle.disabled = typeof payload === 'string' || !payload;
   updateDetailVisibility();
 }
 
@@ -240,7 +240,7 @@ form.addEventListener('submit', async (event) => {
 });
 
 detailToggle.addEventListener('click', () => {
-  if (!lastPayload) return;
+  if (!lastPayload || detailToggle.disabled) return;
   detailsVisible = !detailsVisible;
   updateDetailVisibility();
 });
@@ -253,7 +253,8 @@ clearButton.addEventListener('click', () => {
   summaryOutput.textContent = '还没有运行下载任务。';
   resultOutput.textContent = '';
   resultOutput.hidden = true;
-  detailToggle.hidden = true;
+  detailToggle.disabled = true;
+  detailToggle.textContent = '显示详情';
 });
 
 openOutputButton.addEventListener('click', async () => {

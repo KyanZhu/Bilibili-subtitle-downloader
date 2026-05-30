@@ -14,7 +14,13 @@
             <h1>Bilibili 字幕下载</h1>
             <p>每行输入一个视频链接或 BV 号；批量会串行下载，避免一次打开太多请求。</p>
           </div>
-          <div class="status" id="status">Ready</div>
+          <div class="header-actions">
+            <button type="submit" form="download-form" id="download-button">
+              <span class="button-icon" aria-hidden="true">↓</span>
+              开始下载
+            </button>
+            <div class="status" id="status">Ready</div>
+          </div>
         </header>
 
         <nav class="tabs" aria-label="下载模式">
@@ -102,17 +108,6 @@
             </label>
           </div>
 
-          <div class="actions">
-            <button type="submit" id="download-button">
-              <span class="button-icon" aria-hidden="true">↓</span>
-              开始下载
-            </button>
-            <button type="button" class="secondary" id="clear-button">
-              <span class="button-icon" aria-hidden="true">×</span>
-              清空结果
-            </button>
-          </div>
-
           <label class="field cookie-field">
             <span>Cookies</span>
             <textarea id="cookie-input" name="cookies" spellcheck="false" rows="3" placeholder="# Netscape HTTP Cookie File&#10;.bilibili.com&#9;TRUE&#9;/&#9;TRUE&#9;...&#9;SESSDATA&#9;..."></textarea>
@@ -123,11 +118,17 @@
       <aside class="result-panel">
         <div class="panel-header">
           <h2>结果</h2>
-          <span id="result-kind">等待任务</span>
+          <div class="result-actions">
+            <button type="button" class="secondary detail-toggle" id="detail-toggle" disabled>显示详情</button>
+            <button type="button" class="secondary" id="clear-button">
+              <span class="button-icon" aria-hidden="true">×</span>
+              清空结果
+            </button>
+            <span id="result-kind">等待任务</span>
+          </div>
         </div>
         <div class="result-body">
           <div id="summary-output" class="summary-output">还没有运行下载任务。</div>
-          <button type="button" class="secondary detail-toggle" id="detail-toggle" hidden>显示详情</button>
           <pre id="result-output" hidden></pre>
         </div>
       </aside>

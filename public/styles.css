@@ -57,6 +57,13 @@ body {
   margin-bottom: 24px;
 }
 
+.header-actions {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  flex: 0 0 auto;
+}
+
 h1,
 h2,
 p {
@@ -322,10 +329,6 @@ textarea:focus {
   justify-content: space-between;
 }
 
-#clear-button {
-  margin-left: auto;
-}
-
 button {
   display: inline-flex;
   align-items: center;
@@ -382,6 +385,14 @@ button.secondary:hover {
   border-bottom: 1px solid var(--border);
 }
 
+.result-actions {
+  display: flex;
+  align-items: center;
+  justify-content: flex-end;
+  gap: 10px;
+  flex-wrap: wrap;
+}
+
 .result-body {
   display: grid;
   gap: 14px;
@@ -402,7 +413,7 @@ button.secondary:hover {
 }
 
 .detail-toggle {
-  justify-self: start;
+  min-height: 34px;
 }
 
 #result-output {
@@ -423,12 +434,26 @@ button.secondary:hover {
     flex-direction: column;
   }
 
+  .header-actions {
+    width: 100%;
+    justify-content: space-between;
+  }
+
   .tabs {
     flex-direction: column;
   }
 
   .result-panel {
     min-height: 360px;
+  }
+
+  .panel-header {
+    align-items: flex-start;
+    flex-direction: column;
+  }
+
+  .result-actions {
+    justify-content: flex-start;
   }
 
   .date-grid {
