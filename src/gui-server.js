@@ -30,14 +30,25 @@ function sendJson(response, statusCode, payload) {
 
 function openFolder(folderPath) {
   return new Promise((resolve, reject) => {
-    const child = spawn('explorer.exe', [folderPath], {
-      detached: true,
+    const quotedPath = String(folderPath).replace(/'/g, "''");
+    const child = spawn('powershell.exe', [
+      '-NoProfile',
+      '-ExecutionPolicy',
+      'Bypass',
+      '-Command',
+      `Start-Process -FilePath explorer.exe -ArgumentList '${quotedPath}'`,
+    ], {
       stdio: 'ignore',
       windowsHide: true,
     });
     child.once('error', reject);
-    child.unref();
-    resolve();
+    child.once('exit', (code) => {
+      if (code === 0) {
+        resolve();
+      } else {
+        reject(new Error(`open folder failed: exit ${code}`));
+      }
+    });
   });
 }
 
