@@ -1,0 +1,15 @@
+{
+  "name": "bilibili-subtitle-downloader",
+  "version": "0.1.0",
+  "private": true,
+  "description": "Download Bilibili video subtitles as JSON and ASS.",
+  "main": "src/downloader.js",
+  "bin": {
+    "download-bilibili-subtitle": "bin/download-bilibili-subtitle.js"
+  },
+  "scripts": {
+    "gui": "node bin/gui.js",
+    "test": "node --test",
+    "check": "node scripts/check-syntax.js"
+  }
+}

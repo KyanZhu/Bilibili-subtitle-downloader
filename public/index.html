@@ -1,0 +1,75 @@
+<!doctype html>
+<html lang="zh-CN">
+  <head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <title>Bilibili Subtitle Downloader</title>
+    <link rel="stylesheet" href="/styles.css">
+  </head>
+  <body>
+    <main class="app">
+      <section class="workspace">
+        <header class="header">
+          <div>
+            <h1>Bilibili 字幕下载</h1>
+            <p>每行输入一个视频链接或 BV 号；批量会串行下载，避免一次打开太多请求。</p>
+          </div>
+          <div class="status" id="status">Ready</div>
+        </header>
+
+        <form class="form" id="download-form">
+          <label class="field">
+            <span>视频链接或 BV 号</span>
+            <textarea id="video-input" class="video-list" name="video" autocomplete="off" placeholder="https://www.bilibili.com/video/BV...&#10;BV..." required></textarea>
+          </label>
+
+          <label class="field">
+            <span>Cookies</span>
+            <textarea id="cookie-input" name="cookies" spellcheck="false" placeholder="# Netscape HTTP Cookie File&#10;.bilibili.com&#9;TRUE&#9;/&#9;TRUE&#9;...&#9;SESSDATA&#9;..."></textarea>
+          </label>
+
+          <label class="field field-inline">
+            <span>输出目录</span>
+            <input id="output-input" name="output" value="downloads">
+          </label>
+
+          <div class="options">
+            <label class="check-option">
+              <input id="chinese-only-input" type="checkbox">
+              <span>只下载中文字幕</span>
+            </label>
+            <label class="check-option">
+              <input id="plain-text-input" type="checkbox">
+              <span>同时生成纯文本</span>
+            </label>
+          </div>
+
+          <label class="field field-inline">
+            <span>批量延迟（毫秒）</span>
+            <input id="delay-input" name="delay" type="number" min="0" step="100" value="800">
+          </label>
+
+          <div class="actions">
+            <button type="submit" id="download-button">
+              <span class="button-icon" aria-hidden="true">↓</span>
+              开始下载
+            </button>
+            <button type="button" class="secondary" id="clear-button">
+              <span class="button-icon" aria-hidden="true">×</span>
+              清空结果
+            </button>
+          </div>
+        </form>
+      </section>
+
+      <aside class="result-panel">
+        <div class="panel-header">
+          <h2>结果</h2>
+          <span id="result-kind">等待任务</span>
+        </div>
+        <pre id="result-output">还没有运行下载任务。</pre>
+      </aside>
+    </main>
+    <script src="/app.js"></script>
+  </body>
+</html>
