@@ -255,3 +255,28 @@ test('open output folder api creates and opens requested folder', async () => {
     server.close();
   }
 });
+
+test('open output folder api falls back to downloads when output is blank', async () => {
+  let openedPath;
+  const server = createGuiServer({
+    openFolder: async (folderPath) => {
+      openedPath = folderPath;
+    },
+  });
+  const port = await listen(server);
+
+  try {
+    const response = await fetch(`http://127.0.0.1:${port}/api/open-folder`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ outputDir: '   ' }),
+    });
+    const payload = await response.json();
+
+    assert.equal(response.status, 200);
+    assert.match(openedPath, /downloads$/);
+    assert.match(payload.path, /downloads$/);
+  } finally {
+    server.close();
+  }
+});

@@ -260,10 +260,12 @@ clearButton.addEventListener('click', () => {
 openOutputButton.addEventListener('click', async () => {
   openOutputButton.disabled = true;
   try {
+    const outputDir = outputInput.value.trim() || 'downloads';
+    outputInput.value = outputDir;
     const response = await fetch('/api/open-folder', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ outputDir: outputInput.value }),
+      body: JSON.stringify({ outputDir }),
     });
     const payload = await response.json();
     if (!response.ok) throw new Error(payload.error || `HTTP ${response.status}`);
