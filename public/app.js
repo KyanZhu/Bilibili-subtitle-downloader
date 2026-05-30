@@ -45,6 +45,22 @@ function getBatchPayload(payload) {
   return payload && payload.batch ? payload.batch : payload;
 }
 
+function isSubscriptionUpdatePayload(payload) {
+  return Boolean(payload && payload.summary && Array.isArray(payload.results)
+    && payload.results.some((item) => item && item.subscription));
+}
+
+function addSummaryTotals(total, summary) {
+  total.total += summary.total || 0;
+  total.downloaded += summary.downloaded || 0;
+  total.audioDownloaded += summary.audioDownloaded || 0;
+  total.skippedExisting += summary.skippedExisting || 0;
+  total.errors += summary.errors || 0;
+  total.noSubtitles += summary.noSubtitles || 0;
+  total.authRequired += summary.authRequired || 0;
+  total.failedVideos.push(...(summary.failedVideos || []));
+}
+
 function commonPayload() {
   return {
     cookieText: cookieInput.value,
@@ -63,6 +79,54 @@ function commonPayload() {
 
 function summarizePayload(payload) {
   if (!payload) return '还没有运行下载任务。';
+
+  if (isSubscriptionUpdatePayload(payload)) {
+    const totals = {
+      total: 0,
+      downloaded: 0,
+      audioDownloaded: 0,
+      skippedExisting: 0,
+      errors: 0,
+      noSubtitles: 0,
+      authRequired: 0,
+      failedVideos: [],
+    };
+    for (const item of payload.results) {
+      if (item.status === 'updated' && item.result && item.result.batch && item.result.batch.summary) {
+        addSummaryTotals(totals, item.result.batch.summary);
+      }
+    }
+    const lines = [];
+    lines.push(`订阅总数：${payload.summary.total || 0}`);
+    lines.push(`更新成功：${payload.summary.updated || 0}`);
+    lines.push(`更新失败：${payload.summary.errors || 0}`);
+    lines.push(`总共抓取视频：${totals.total}`);
+    lines.push(`成功下载：${totals.downloaded}`);
+    lines.push(`音频下载：${totals.audioDownloaded}`);
+    lines.push(`跳过已有：${totals.skippedExisting}`);
+    lines.push(`下载失败：${totals.errors}`);
+    lines.push(`没有字幕：${totals.noSubtitles}`);
+    lines.push(`需要权限：${totals.authRequired}`);
+
+    const failed = payload.results.filter((item) => item.status === 'error');
+    if (failed.length > 0) {
+      lines.push('');
+      lines.push('失败订阅：');
+      for (const item of failed) {
+        lines.push(`- ${item.subscription.name || item.subscription.mid}: ${item.error}`);
+      }
+    }
+
+    if (totals.failedVideos.length > 0) {
+      lines.push('');
+      lines.push('失败视频：');
+      for (const item of totals.failedVideos) {
+        lines.push(`- ${videoUrl(item.url || item.input)}${item.error ? ` (${item.error})` : ''}`);
+      }
+    }
+    return lines.join('\n');
+  }
+
   const batch = getBatchPayload(payload);
 
   if (batch && batch.summary) {
@@ -89,22 +153,6 @@ function summarizePayload(payload) {
       lines.push('失败视频：');
       for (const item of failedVideos) {
         lines.push(`- ${videoUrl(item.url || item.input)}${item.error ? ` (${item.error})` : ''}`);
-      }
-    }
-    return lines.join('\n');
-  }
-
-  if (payload.summary && payload.results) {
-    const lines = [];
-    lines.push(`订阅总数：${payload.summary.total || 0}`);
-    lines.push(`更新成功：${payload.summary.updated || 0}`);
-    lines.push(`更新失败：${payload.summary.errors || 0}`);
-    const failed = payload.results.filter((item) => item.status === 'error');
-    if (failed.length > 0) {
-      lines.push('');
-      lines.push('失败订阅：');
-      for (const item of failed) {
-        lines.push(`- ${item.subscription.name || item.subscription.mid}: ${item.error}`);
       }
     }
     return lines.join('\n');
