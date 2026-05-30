@@ -102,6 +102,7 @@ test('download api forwards uploader mode to uploader downloader', async () => {
         chineseOnly: true,
         plainText: true,
         renameByTitle: true,
+        incrementalUpdate: true,
         delayMs: 1200,
       }),
     });
@@ -115,6 +116,7 @@ test('download api forwards uploader mode to uploader downloader', async () => {
     assert.equal(received.chineseOnly, true);
     assert.equal(received.plainText, true);
     assert.equal(received.renameByTitle, true);
+    assert.equal(received.incrementalUpdate, true);
     assert.equal(received.delayMs, 1200);
     assert.equal(received.publishedAfter, undefined);
     assert.equal(received.publishedBefore, undefined);

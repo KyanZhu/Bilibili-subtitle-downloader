@@ -1,4 +1,5 @@
 const path = require('node:path');
+const fs = require('node:fs/promises');
 const { downloadBatchSubtitles } = require('./batch-downloader');
 const { createBilibiliClient } = require('./bilibili-client');
 const { sanitizeName } = require('./downloader');
@@ -45,8 +46,29 @@ async function downloadUploaderSubtitles(options) {
     if (options.publishedBefore && publishedAt > options.publishedBefore) return false;
     return true;
   });
-  const inputs = filteredVideos.map((video) => video.bvid).filter(Boolean);
   const uploaderOutputDir = path.join(options.outputDir || 'downloads', sanitizeName(uploader.name));
+  const skippedVideos = [];
+  const videosToDownload = [];
+
+  for (const video of filteredVideos) {
+    if (!video.bvid) {
+      continue;
+    }
+    if (options.incrementalUpdate) {
+      try {
+        await fs.access(path.join(uploaderOutputDir, video.bvid));
+        skippedVideos.push(video);
+        continue;
+      } catch (error) {
+        if (error.code !== 'ENOENT') {
+          throw error;
+        }
+      }
+    }
+    videosToDownload.push(video);
+  }
+
+  const inputs = videosToDownload.map((video) => video.bvid);
   const batch = await (options.downloadBatchSubtitles || downloadBatchSubtitles)({
     inputs,
     outputDir: uploaderOutputDir,
@@ -58,12 +80,17 @@ async function downloadUploaderSubtitles(options) {
     delayMs: options.delayMs,
     client,
   });
+  batch.summary = {
+    ...batch.summary,
+    skippedExisting: skippedVideos.length,
+  };
 
   return {
     status: batch.status,
     uploader,
     totalVideos: videoList.total,
     filteredVideos: filteredVideos.length,
+    skippedExisting: skippedVideos.length,
     outputDir: uploaderOutputDir,
     batch,
   };

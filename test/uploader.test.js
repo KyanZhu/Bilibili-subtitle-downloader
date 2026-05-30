@@ -1,5 +1,7 @@
 const test = require('node:test');
 const assert = require('node:assert/strict');
+const fs = require('node:fs/promises');
+const os = require('node:os');
 const path = require('node:path');
 const { parseUploaderInput, downloadUploaderSubtitles } = require('../src/uploader');
 
@@ -69,4 +71,35 @@ test('filters uploader videos by publish time before downloading', async () => {
   assert.deepEqual(seen[0].inputs, ['BV_IN_RANGE']);
   assert.equal(result.totalVideos, 3);
   assert.equal(result.filteredVideos, 1);
+});
+
+test('skips existing uploader video folders when incremental update is enabled', async () => {
+  const temp = await fs.mkdtemp(path.join(os.tmpdir(), 'bili-sub-'));
+  await fs.mkdir(path.join(temp, '三七床车流浪中国', 'BV_EXISTING'), { recursive: true });
+  const seen = [];
+  const result = await downloadUploaderSubtitles({
+    uploader: '1350959407',
+    outputDir: temp,
+    delayMs: 0,
+    incrementalUpdate: true,
+    client: {
+      resolveUploaderByName: async () => ({ mid: 1350959407, name: '三七床车流浪中国' }),
+      getUploaderInfo: async () => ({ mid: 1350959407, name: '三七床车流浪中国' }),
+      getUploaderVideos: async () => ({
+        total: 2,
+        videos: [
+          { bvid: 'BV_EXISTING', title: 'Existing', created: 1778214713 },
+          { bvid: 'BV_NEW', title: 'New', created: 1778214714 },
+        ],
+      }),
+    },
+    downloadBatchSubtitles: async (options) => {
+      seen.push(options);
+      return { status: 'completed', summary: { total: options.inputs.length }, results: [] };
+    },
+  });
+
+  assert.deepEqual(seen[0].inputs, ['BV_NEW']);
+  assert.equal(result.skippedExisting, 1);
+  assert.equal(result.batch.summary.skippedExisting, 1);
 });

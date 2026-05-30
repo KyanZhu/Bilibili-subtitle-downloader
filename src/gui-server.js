@@ -76,6 +76,7 @@ function createGuiServer(options = {}) {
             ...commonOptions,
             uploader,
             delayMs: Number(body.delayMs || 800),
+            incrementalUpdate: Boolean(body.incrementalUpdate),
             publishedAfter: parseDateBoundary(body.startDate),
             publishedBefore: parseDateBoundary(body.endDate, true),
           });

@@ -11,6 +11,7 @@ const chineseOnlyInput = document.querySelector('#chinese-only-input');
 const plainTextInput = document.querySelector('#plain-text-input');
 const renameByTitleInput = document.querySelector('#rename-by-title-input');
 const audioFallbackInput = document.querySelector('#audio-fallback-input');
+const incrementalUpdateInput = document.querySelector('#incremental-update-input');
 const delayInput = document.querySelector('#delay-input');
 const statusEl = document.querySelector('#status');
 const resultKind = document.querySelector('#result-kind');
@@ -55,6 +56,7 @@ function summarizePayload(payload) {
     }
     lines.push(`成功下载：${summary.downloaded || 0}`);
     lines.push(`音频下载：${summary.audioDownloaded || 0}`);
+    lines.push(`跳过已有：${summary.skippedExisting || 0}`);
     lines.push(`下载失败：${summary.errors || 0}`);
     lines.push(`没有字幕：${summary.noSubtitles || 0}`);
     lines.push(`需要权限：${summary.authRequired || 0}`);
@@ -155,6 +157,7 @@ form.addEventListener('submit', async (event) => {
         plainText: plainTextInput.checked,
         renameByTitle: renameByTitleInput.checked,
         downloadAudioWhenNoSubtitles: audioFallbackInput.checked,
+        incrementalUpdate: incrementalUpdateInput.checked,
         delayMs: Number(delayInput.value || 800),
       }),
     });
