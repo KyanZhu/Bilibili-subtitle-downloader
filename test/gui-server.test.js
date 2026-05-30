@@ -103,6 +103,7 @@ test('download api forwards uploader mode to uploader downloader', async () => {
         plainText: true,
         renameByTitle: true,
         incrementalUpdate: true,
+        groupByDate: true,
         delayMs: 1200,
       }),
     });
@@ -117,6 +118,7 @@ test('download api forwards uploader mode to uploader downloader', async () => {
     assert.equal(received.plainText, true);
     assert.equal(received.renameByTitle, true);
     assert.equal(received.incrementalUpdate, true);
+    assert.equal(received.groupByDate, true);
     assert.equal(received.delayMs, 1200);
     assert.equal(received.publishedAfter, undefined);
     assert.equal(received.publishedBefore, undefined);
@@ -193,7 +195,7 @@ test('subscriptions api lists, adds, removes, and updates subscriptions', async 
       return { removed: 1 };
     },
     updateSubscriptions: async (options) => {
-      calls.push(['update', options.outputDir, options.cookie, options.incrementalUpdate]);
+      calls.push(['update', options.outputDir, options.cookie, options.incrementalUpdate, options.groupByDate]);
       return { status: 'completed', summary: { total: 1, updated: 1, errors: 0 }, results: [] };
     },
   });
@@ -218,10 +220,11 @@ test('subscriptions api lists, adds, removes, and updates subscriptions', async 
       body: JSON.stringify({
         outputDir: 'downloads',
         cookieText: '.bilibili.com\tTRUE\t/\tTRUE\t1785224583\tSESSDATA\tabc',
+        groupByDate: true,
       }),
     });
     assert.equal(response.status, 200);
-    assert.deepEqual(calls[0], ['update', 'downloads', 'SESSDATA=abc', true]);
+    assert.deepEqual(calls[0], ['update', 'downloads', 'SESSDATA=abc', true, true]);
 
     response = await fetch(`http://127.0.0.1:${port}/api/subscriptions/1350959407`, { method: 'DELETE' });
     assert.equal(response.status, 200);

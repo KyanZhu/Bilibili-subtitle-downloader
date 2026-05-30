@@ -51,6 +51,7 @@ test('updates enabled subscriptions with incremental uploader downloads', async 
   const result = await updateSubscriptions({
     subscriptionsPath,
     outputDir: temp,
+    groupByDate: true,
     downloadUploaderSubtitles: async (options) => {
       seen.push(options);
       return { status: 'completed', uploader: { mid: 1, name: 'one' }, batch: { summary: { total: 0 } } };
@@ -63,4 +64,5 @@ test('updates enabled subscriptions with incremental uploader downloads', async 
   assert.equal(seen.length, 1);
   assert.equal(seen[0].uploader, '1');
   assert.equal(seen[0].incrementalUpdate, true);
+  assert.equal(seen[0].groupByDate, true);
 });

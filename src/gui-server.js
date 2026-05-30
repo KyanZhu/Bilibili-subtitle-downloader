@@ -132,6 +132,7 @@ function createGuiServer(options = {}) {
           plainText: Boolean(body.plainText),
           renameByTitle: Boolean(body.renameByTitle),
           downloadAudioWhenNoSubtitles: Boolean(body.downloadAudioWhenNoSubtitles),
+          groupByDate: Boolean(body.groupByDate),
           incrementalUpdate: body.incrementalUpdate !== false,
           delayMs: Number(body.delayMs || 800),
           publishedAfter: parseDateBoundary(body.startDate),
@@ -162,6 +163,7 @@ function createGuiServer(options = {}) {
             uploader,
             delayMs: Number(body.delayMs || 800),
             incrementalUpdate: Boolean(body.incrementalUpdate),
+            groupByDate: Boolean(body.groupByDate),
             publishedAfter: parseDateBoundary(body.startDate),
             publishedBefore: parseDateBoundary(body.endDate, true),
           });

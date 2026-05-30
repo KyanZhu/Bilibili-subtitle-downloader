@@ -13,6 +13,7 @@ const plainTextInput = document.querySelector('#plain-text-input');
 const renameByTitleInput = document.querySelector('#rename-by-title-input');
 const audioFallbackInput = document.querySelector('#audio-fallback-input');
 const incrementalUpdateInput = document.querySelector('#incremental-update-input');
+const groupByDateInput = document.querySelector('#group-by-date-input');
 const delayInput = document.querySelector('#delay-input');
 const statusEl = document.querySelector('#status');
 const resultKind = document.querySelector('#result-kind');
@@ -53,6 +54,7 @@ function commonPayload() {
     renameByTitle: renameByTitleInput.checked,
     downloadAudioWhenNoSubtitles: audioFallbackInput.checked,
     incrementalUpdate: incrementalUpdateInput.checked,
+    groupByDate: activeTab !== 'video' && groupByDateInput.checked,
     delayMs: Number(delayInput.value || 800),
     startDate: startDateInput.value,
     endDate: endDateInput.value,

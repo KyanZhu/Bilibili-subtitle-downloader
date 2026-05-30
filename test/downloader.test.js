@@ -21,10 +21,31 @@ test('writes json and ass files for available subtitles', async () => {
   assert.equal(result.status, 'downloaded');
   assert.equal(result.downloaded.length, 1);
 
-  const jsonPath = path.join(temp, 'BV1Jh5d68Er3', 'subtitles', 'p01-zh-Hans.json');
-  const assPath = path.join(temp, 'BV1Jh5d68Er3', 'subtitles', 'p01-zh-Hans.ass');
-  assert.match(await fs.readFile(jsonPath, 'utf8'), /hello/);
-  assert.match(await fs.readFile(assPath, 'utf8'), /Dialogue:/);
+  assert.match(await fs.readFile(result.downloaded[0].jsonPath, 'utf8'), /hello/);
+  assert.match(await fs.readFile(result.downloaded[0].assPath, 'utf8'), /Dialogue:/);
+});
+
+test('uses a date folder under downloads by default', async () => {
+  const temp = await fs.mkdtemp(path.join(os.tmpdir(), 'bili-sub-'));
+  const client = {
+    getPages: async () => [{ cid: 123, page: 1, part: 'Part One' }],
+    getPlayerInfo: async () => ({
+      subtitle: {
+        subtitles: [{ lan: 'zh-Hans', subtitle_url: '//example.com/sub.json' }],
+      },
+    }),
+    downloadSubtitle: async () => ({ body: [{ from: 0, to: 1, content: 'hello' }] }),
+  };
+
+  const result = await downloadVideoSubtitles({
+    input: 'BV1Jh5d68Er3',
+    outputDir: temp,
+    now: new Date('2026-05-30T12:34:56Z'),
+    client,
+  });
+
+  assert.match(result.downloaded[0].assPath, /2026-05-30/);
+  assert.match(result.downloaded[0].assPath, /BV1Jh5d68Er3/);
 });
 
 test('filters to chinese subtitle tracks when requested', async () => {
@@ -93,9 +114,14 @@ test('records no-subtitle videos without throwing', async () => {
     getPlayerInfo: async () => ({ subtitle: { subtitles: [] } }),
   };
 
-  const result = await downloadVideoSubtitles({ input: 'BV1vBdMBREtm', outputDir: temp, client });
+  const result = await downloadVideoSubtitles({
+    input: 'BV1vBdMBREtm',
+    outputDir: temp,
+    now: new Date('2026-05-30T12:34:56Z'),
+    client,
+  });
   assert.equal(result.status, 'no-subtitles');
-  const metadata = JSON.parse(await fs.readFile(path.join(temp, 'BV1vBdMBREtm', 'metadata.json'), 'utf8'));
+  const metadata = JSON.parse(await fs.readFile(path.join(temp, '2026-05-30', 'BV1vBdMBREtm', 'metadata.json'), 'utf8'));
   assert.equal(metadata.status, 'no-subtitles');
 });
 

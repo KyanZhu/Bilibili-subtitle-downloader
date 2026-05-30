@@ -3,6 +3,7 @@ const path = require('node:path');
 const { bccToAss } = require('./ass');
 const { createBilibiliClient } = require('./bilibili-client');
 const { extractBvid } = require('./bvid');
+const { withDateFolder } = require('./output-paths');
 const { bccToPlainText } = require('./text');
 
 function sanitizeName(value) {
@@ -45,7 +46,9 @@ async function writeJson(filePath, value) {
 
 async function downloadVideoSubtitles(options) {
   const input = options.input;
-  const outputDir = options.outputDir || 'downloads';
+  const outputDir = options.useDateFolder === false
+    ? (options.outputDir || 'downloads')
+    : withDateFolder(options.outputDir || 'downloads', options.now);
   const client = options.client || createBilibiliClient({ cookie: options.cookie });
   const bvid = extractBvid(input);
   const videoDir = path.join(outputDir, bvid);

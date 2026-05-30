@@ -3,6 +3,7 @@ const fs = require('node:fs/promises');
 const { downloadBatchSubtitles } = require('./batch-downloader');
 const { createBilibiliClient } = require('./bilibili-client');
 const { sanitizeName } = require('./downloader');
+const { withDateFolder } = require('./output-paths');
 
 function parseUploaderInput(input) {
   const text = String(input || '').trim();
@@ -46,7 +47,8 @@ async function downloadUploaderSubtitles(options) {
     if (options.publishedBefore && publishedAt > options.publishedBefore) return false;
     return true;
   });
-  const uploaderOutputDir = path.join(options.outputDir || 'downloads', sanitizeName(uploader.name));
+  const baseOutputDir = options.groupByDate ? withDateFolder(options.outputDir || 'downloads', options.now) : (options.outputDir || 'downloads');
+  const uploaderOutputDir = path.join(baseOutputDir, sanitizeName(uploader.name));
   const skippedVideos = [];
   const videosToDownload = [];
 
@@ -77,6 +79,7 @@ async function downloadUploaderSubtitles(options) {
     plainText: options.plainText,
     renameByTitle: options.renameByTitle,
     downloadAudioWhenNoSubtitles: options.downloadAudioWhenNoSubtitles,
+    useDateFolder: false,
     delayMs: options.delayMs,
     client,
   });

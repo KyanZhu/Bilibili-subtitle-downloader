@@ -65,6 +65,8 @@ async function downloadBatchSubtitles(options) {
         plainText: options.plainText,
         renameByTitle: options.renameByTitle,
         downloadAudioWhenNoSubtitles: options.downloadAudioWhenNoSubtitles,
+        useDateFolder: options.useDateFolder,
+        now: options.now,
         client: options.client,
       }));
     } catch (error) {

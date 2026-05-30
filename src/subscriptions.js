@@ -76,6 +76,8 @@ async function updateSubscriptions(options = {}) {
         renameByTitle: options.renameByTitle,
         downloadAudioWhenNoSubtitles: options.downloadAudioWhenNoSubtitles,
         incrementalUpdate: options.incrementalUpdate !== false,
+        groupByDate: options.groupByDate,
+        now: options.now,
         delayMs: options.delayMs,
         publishedAfter: options.publishedAfter,
         publishedBefore: options.publishedBefore,

@@ -103,3 +103,29 @@ test('skips existing uploader video folders when incremental update is enabled',
   assert.equal(result.skippedExisting, 1);
   assert.equal(result.batch.summary.skippedExisting, 1);
 });
+
+test('uses date folder for uploader downloads when requested', async () => {
+  const seen = [];
+  const result = await downloadUploaderSubtitles({
+    uploader: '1350959407',
+    outputDir: 'downloads',
+    delayMs: 0,
+    groupByDate: true,
+    now: new Date('2026-05-30T12:34:56Z'),
+    client: {
+      resolveUploaderByName: async () => ({ mid: 1350959407, name: '三七床车流浪中国' }),
+      getUploaderInfo: async () => ({ mid: 1350959407, name: '三七床车流浪中国' }),
+      getUploaderVideos: async () => ({
+        total: 1,
+        videos: [{ bvid: 'BV_NEW', title: 'New', created: 1778214714 }],
+      }),
+    },
+    downloadBatchSubtitles: async (options) => {
+      seen.push(options);
+      return { status: 'completed', summary: { total: options.inputs.length }, results: [] };
+    },
+  });
+
+  assert.equal(seen[0].outputDir, path.join('downloads', '2026-05-30', '三七床车流浪中国'));
+  assert.equal(result.outputDir, path.join('downloads', '2026-05-30', '三七床车流浪中国'));
+});
