@@ -215,6 +215,45 @@ textarea:focus {
   line-height: 1.6;
 }
 
+.subscription-tools {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  gap: 12px;
+  align-items: end;
+}
+
+.subscription-list {
+  display: grid;
+  gap: 10px;
+}
+
+.subscription-item {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  padding: 12px;
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  background: #fff;
+}
+
+.subscription-item div {
+  display: grid;
+  gap: 3px;
+  min-width: 0;
+}
+
+.subscription-item strong,
+.subscription-item span {
+  overflow-wrap: anywhere;
+}
+
+.subscription-item span {
+  color: var(--muted);
+  font-size: 12px;
+}
+
 .options {
   display: grid;
   gap: 10px;
@@ -352,5 +391,14 @@ button.secondary:hover {
 
   .date-grid {
     grid-template-columns: 1fr;
+  }
+
+  .subscription-tools,
+  .subscription-item {
+    grid-template-columns: 1fr;
+  }
+
+  .subscription-item {
+    align-items: stretch;
   }
 }

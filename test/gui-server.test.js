@@ -177,3 +177,56 @@ test('download api rejects missing video input', async () => {
     server.close();
   }
 });
+
+test('subscriptions api lists, adds, removes, and updates subscriptions', async () => {
+  const calls = [];
+  const store = [];
+  const server = createGuiServer({
+    listSubscriptions: async () => store,
+    addSubscription: async (options) => {
+      const item = { mid: 1350959407, name: '三七床车流浪中国', input: options.input, enabled: true };
+      store.push(item);
+      return item;
+    },
+    removeSubscription: async (options) => {
+      calls.push(['remove', options.mid]);
+      return { removed: 1 };
+    },
+    updateSubscriptions: async (options) => {
+      calls.push(['update', options.outputDir, options.cookie, options.incrementalUpdate]);
+      return { status: 'completed', summary: { total: 1, updated: 1, errors: 0 }, results: [] };
+    },
+  });
+  const port = await listen(server);
+
+  try {
+    let response = await fetch(`http://127.0.0.1:${port}/api/subscriptions`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ input: '1350959407' }),
+    });
+    assert.equal(response.status, 200);
+    assert.equal((await response.json()).mid, 1350959407);
+
+    response = await fetch(`http://127.0.0.1:${port}/api/subscriptions`);
+    assert.equal(response.status, 200);
+    assert.equal((await response.json()).subscriptions.length, 1);
+
+    response = await fetch(`http://127.0.0.1:${port}/api/subscriptions/update`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        outputDir: 'downloads',
+        cookieText: '.bilibili.com\tTRUE\t/\tTRUE\t1785224583\tSESSDATA\tabc',
+      }),
+    });
+    assert.equal(response.status, 200);
+    assert.deepEqual(calls[0], ['update', 'downloads', 'SESSDATA=abc', true]);
+
+    response = await fetch(`http://127.0.0.1:${port}/api/subscriptions/1350959407`, { method: 'DELETE' });
+    assert.equal(response.status, 200);
+    assert.deepEqual(calls[1], ['remove', 1350959407]);
+  } finally {
+    server.close();
+  }
+});

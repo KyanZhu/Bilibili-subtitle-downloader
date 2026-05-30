@@ -5,6 +5,12 @@ const { downloadBatchSubtitles, parseBatchInputs } = require('./batch-downloader
 const { parseCookieText } = require('./cookie');
 const { downloadVideoSubtitles } = require('./downloader');
 const { downloadUploaderSubtitles } = require('./uploader');
+const {
+  addSubscription,
+  listSubscriptions,
+  removeSubscription,
+  updateSubscriptions,
+} = require('./subscriptions');
 
 const MIME_TYPES = {
   '.html': 'text/html; charset=utf-8',
@@ -51,10 +57,53 @@ function createGuiServer(options = {}) {
   const runDownload = options.downloadVideoSubtitles || downloadVideoSubtitles;
   const runBatchDownload = options.downloadBatchSubtitles || downloadBatchSubtitles;
   const runUploaderDownload = options.downloadUploaderSubtitles || downloadUploaderSubtitles;
+  const runListSubscriptions = options.listSubscriptions || listSubscriptions;
+  const runAddSubscription = options.addSubscription || addSubscription;
+  const runRemoveSubscription = options.removeSubscription || removeSubscription;
+  const runUpdateSubscriptions = options.updateSubscriptions || updateSubscriptions;
 
   return http.createServer(async (request, response) => {
     try {
       const url = new URL(request.url, 'http://127.0.0.1');
+
+      if (request.method === 'GET' && url.pathname === '/api/subscriptions') {
+        sendJson(response, 200, { subscriptions: await runListSubscriptions() });
+        return;
+      }
+
+      if (request.method === 'POST' && url.pathname === '/api/subscriptions') {
+        const body = await readRequestJson(request);
+        const item = await runAddSubscription({
+          input: body.input,
+          cookie: parseCookieText(body.cookieText || ''),
+        });
+        sendJson(response, 200, item);
+        return;
+      }
+
+      if (request.method === 'DELETE' && url.pathname.startsWith('/api/subscriptions/')) {
+        const mid = Number(decodeURIComponent(url.pathname.replace('/api/subscriptions/', '')));
+        sendJson(response, 200, await runRemoveSubscription({ mid }));
+        return;
+      }
+
+      if (request.method === 'POST' && url.pathname === '/api/subscriptions/update') {
+        const body = await readRequestJson(request);
+        const result = await runUpdateSubscriptions({
+          outputDir: String(body.outputDir || 'downloads').trim() || 'downloads',
+          cookie: parseCookieText(body.cookieText || ''),
+          chineseOnly: Boolean(body.chineseOnly),
+          plainText: Boolean(body.plainText),
+          renameByTitle: Boolean(body.renameByTitle),
+          downloadAudioWhenNoSubtitles: Boolean(body.downloadAudioWhenNoSubtitles),
+          incrementalUpdate: body.incrementalUpdate !== false,
+          delayMs: Number(body.delayMs || 800),
+          publishedAfter: parseDateBoundary(body.startDate),
+          publishedBefore: parseDateBoundary(body.endDate, true),
+        });
+        sendJson(response, 200, result);
+        return;
+      }
 
       if (request.method === 'POST' && url.pathname === '/api/download') {
         const body = await readRequestJson(request);

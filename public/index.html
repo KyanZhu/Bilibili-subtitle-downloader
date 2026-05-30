@@ -50,9 +50,18 @@
           </section>
 
           <section class="tab-panel" data-panel="subscriptions" hidden>
-            <div class="empty-state">
-              <h2>订阅更新</h2>
-              <p>订阅列表会在后续提交中接入；这里将用于一键更新多个 UP 主。</p>
+            <div class="subscription-tools">
+              <label class="field">
+                <span>添加订阅 UP 主</span>
+                <input id="subscription-input" autocomplete="off" placeholder="三七床车流浪中国 / 1350959407 / https://space.bilibili.com/1350959407">
+              </label>
+              <button type="button" class="secondary" id="add-subscription-button">添加订阅</button>
+            </div>
+            <div class="subscription-list" id="subscription-list">
+              <div class="empty-state">
+                <h2>订阅更新</h2>
+                <p>还没有订阅 UP 主。</p>
+              </div>
             </div>
           </section>
 

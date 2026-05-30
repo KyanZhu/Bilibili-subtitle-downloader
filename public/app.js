@@ -20,6 +20,9 @@ const resultOutput = document.querySelector('#result-output');
 const detailToggle = document.querySelector('#detail-toggle');
 const downloadButton = document.querySelector('#download-button');
 const clearButton = document.querySelector('#clear-button');
+const subscriptionInput = document.querySelector('#subscription-input');
+const addSubscriptionButton = document.querySelector('#add-subscription-button');
+const subscriptionList = document.querySelector('#subscription-list');
 
 let lastPayload = null;
 let detailsVisible = false;
@@ -38,6 +41,21 @@ function videoUrl(value) {
 
 function getBatchPayload(payload) {
   return payload && payload.batch ? payload.batch : payload;
+}
+
+function commonPayload() {
+  return {
+    cookieText: cookieInput.value,
+    outputDir: outputInput.value,
+    chineseOnly: chineseOnlyInput.checked,
+    plainText: plainTextInput.checked,
+    renameByTitle: renameByTitleInput.checked,
+    downloadAudioWhenNoSubtitles: audioFallbackInput.checked,
+    incrementalUpdate: incrementalUpdateInput.checked,
+    delayMs: Number(delayInput.value || 800),
+    startDate: startDateInput.value,
+    endDate: endDateInput.value,
+  };
 }
 
 function summarizePayload(payload) {
@@ -68,6 +86,22 @@ function summarizePayload(payload) {
       lines.push('失败视频：');
       for (const item of failedVideos) {
         lines.push(`- ${videoUrl(item.url || item.input)}${item.error ? ` (${item.error})` : ''}`);
+      }
+    }
+    return lines.join('\n');
+  }
+
+  if (payload.summary && payload.results) {
+    const lines = [];
+    lines.push(`订阅总数：${payload.summary.total || 0}`);
+    lines.push(`更新成功：${payload.summary.updated || 0}`);
+    lines.push(`更新失败：${payload.summary.errors || 0}`);
+    const failed = payload.results.filter((item) => item.status === 'error');
+    if (failed.length > 0) {
+      lines.push('');
+      lines.push('失败订阅：');
+      for (const item of failed) {
+        lines.push(`- ${item.subscription.name || item.subscription.mid}: ${item.error}`);
       }
     }
     return lines.join('\n');
@@ -123,6 +157,9 @@ function setActiveTab(tabName) {
     panel.classList.toggle('is-active', isActive);
     panel.hidden = !isActive;
   }
+  if (tabName === 'subscriptions') {
+    loadSubscriptions();
+  }
 }
 
 for (const button of tabButtons) {
@@ -134,7 +171,25 @@ for (const button of tabButtons) {
 form.addEventListener('submit', async (event) => {
   event.preventDefault();
   if (activeTab === 'subscriptions') {
-    showResult('订阅更新', '订阅列表会在后续提交中接入。');
+    downloadButton.disabled = true;
+    setStatus('Running', 'is-running');
+    showResult('订阅更新中', '正在串行更新订阅 UP 主...');
+    try {
+      const response = await fetch('/api/subscriptions/update', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(commonPayload()),
+      });
+      const payload = await response.json();
+      if (!response.ok) throw new Error(payload.error || `HTTP ${response.status}`);
+      setStatus('Done', 'is-done');
+      showResult('订阅完成', payload);
+    } catch (error) {
+      setStatus('Error', 'is-error');
+      showResult('错误', error.message || String(error));
+    } finally {
+      downloadButton.disabled = false;
+    }
     return;
   }
   downloadButton.disabled = true;
@@ -146,19 +201,10 @@ form.addEventListener('submit', async (event) => {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({
+        ...commonPayload(),
         input: videoInput.value,
         uploaderMode: activeTab === 'uploader',
         uploader: uploaderInput.value,
-        cookieText: cookieInput.value,
-        outputDir: outputInput.value,
-        startDate: startDateInput.value,
-        endDate: endDateInput.value,
-        chineseOnly: chineseOnlyInput.checked,
-        plainText: plainTextInput.checked,
-        renameByTitle: renameByTitleInput.checked,
-        downloadAudioWhenNoSubtitles: audioFallbackInput.checked,
-        incrementalUpdate: incrementalUpdateInput.checked,
-        delayMs: Number(delayInput.value || 800),
       }),
     });
     const payload = await response.json();
@@ -206,4 +252,80 @@ clearButton.addEventListener('click', () => {
   resultOutput.textContent = '';
   resultOutput.hidden = true;
   detailToggle.hidden = true;
+});
+
+function renderSubscriptions(subscriptions) {
+  if (!subscriptions.length) {
+    subscriptionList.innerHTML = '<div class="empty-state"><h2>订阅更新</h2><p>还没有订阅 UP 主。</p></div>';
+    return;
+  }
+  subscriptionList.innerHTML = '';
+  for (const subscription of subscriptions) {
+    const item = document.createElement('div');
+    item.className = 'subscription-item';
+    item.innerHTML = `
+      <div>
+        <strong></strong>
+        <span></span>
+      </div>
+      <button type="button" class="secondary" data-remove-subscription="${subscription.mid}">删除</button>
+    `;
+    item.querySelector('strong').textContent = subscription.name || subscription.mid;
+    item.querySelector('span').textContent = `ID: ${subscription.mid}`;
+    subscriptionList.appendChild(item);
+  }
+}
+
+async function loadSubscriptions() {
+  try {
+    const response = await fetch('/api/subscriptions');
+    const payload = await response.json();
+    if (!response.ok) throw new Error(payload.error || `HTTP ${response.status}`);
+    renderSubscriptions(payload.subscriptions || []);
+  } catch (error) {
+    subscriptionList.innerHTML = `<div class="empty-state"><h2>订阅更新</h2><p>${error.message || String(error)}</p></div>`;
+  }
+}
+
+addSubscriptionButton.addEventListener('click', async () => {
+  const input = subscriptionInput.value.trim();
+  if (!input) return;
+  addSubscriptionButton.disabled = true;
+  setStatus('Running', 'is-running');
+  try {
+    const response = await fetch('/api/subscriptions', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ input, cookieText: cookieInput.value }),
+    });
+    const payload = await response.json();
+    if (!response.ok) throw new Error(payload.error || `HTTP ${response.status}`);
+    subscriptionInput.value = '';
+    setStatus('Ready', '');
+    showResult('已添加订阅', payload);
+    await loadSubscriptions();
+  } catch (error) {
+    setStatus('Error', 'is-error');
+    showResult('错误', error.message || String(error));
+  } finally {
+    addSubscriptionButton.disabled = false;
+  }
+});
+
+subscriptionList.addEventListener('click', async (event) => {
+  const button = event.target.closest('[data-remove-subscription]');
+  if (!button) return;
+  button.disabled = true;
+  try {
+    const response = await fetch(`/api/subscriptions/${encodeURIComponent(button.dataset.removeSubscription)}`, {
+      method: 'DELETE',
+    });
+    const payload = await response.json();
+    if (!response.ok) throw new Error(payload.error || `HTTP ${response.status}`);
+    showResult('已删除订阅', payload);
+    await loadSubscriptions();
+  } catch (error) {
+    setStatus('Error', 'is-error');
+    showResult('错误', error.message || String(error));
+  }
 });
