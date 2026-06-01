@@ -9,10 +9,12 @@ function createBilibiliClient(options = {}) {
     throw new Error('This Node.js runtime does not provide fetch.');
   }
 
-  function headersFor(bvid) {
+  function headersFor(bvid, referer) {
     const headers = {
-      'User-Agent': 'Mozilla/5.0 BilibiliSubtitleDownloader/0.1',
-      Referer: bvid ? `https://www.bilibili.com/video/${bvid}` : 'https://www.bilibili.com/',
+      'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/125.0.0.0 Safari/537.36',
+      Accept: 'application/json, text/plain, */*',
+      'Accept-Language': 'zh-CN,zh;q=0.9,en;q=0.8',
+      Referer: referer || (bvid ? `https://www.bilibili.com/video/${bvid}` : 'https://www.bilibili.com/'),
     };
     if (cookie) {
       headers.Cookie = cookie;
@@ -20,8 +22,8 @@ function createBilibiliClient(options = {}) {
     return headers;
   }
 
-  async function getJson(url, bvid, label) {
-    const response = await fetchImpl(url, { headers: headersFor(bvid) });
+  async function getJson(url, bvid, label, referer) {
+    const response = await fetchImpl(url, { headers: headersFor(bvid, referer) });
     if (!response.ok) {
       throw new Error(`${label} failed: HTTP ${response.status}`);
     }
@@ -52,10 +54,10 @@ function createBilibiliClient(options = {}) {
     return wbiSignerPromise;
   }
 
-  async function getSignedJson(baseUrl, params, bvid, label) {
+  async function getSignedJson(baseUrl, params, bvid, label, referer) {
     const signer = await getWbiSigner();
     const signed = signer.sign(params);
-    return getJson(`${baseUrl}?${toQuery(signed)}`, bvid || '', label);
+    return getJson(`${baseUrl}?${toQuery(signed)}`, bvid || '', label, referer);
   }
 
   return {
@@ -77,7 +79,7 @@ function createBilibiliClient(options = {}) {
     },
 
     async getUploaderInfo(mid) {
-      return getSignedJson('https://api.bilibili.com/x/space/wbi/acc/info', { mid }, '', 'uploader info');
+      return getSignedJson('https://api.bilibili.com/x/space/wbi/acc/info', { mid }, '', 'uploader info', `https://space.bilibili.com/${mid}`);
     },
 
     async getUploaderVideos(mid, options = {}) {
@@ -92,7 +94,7 @@ function createBilibiliClient(options = {}) {
           pn: page,
           ps: pageSize,
           order: 'pubdate',
-        }, '', 'uploader videos');
+        }, '', 'uploader videos', `https://space.bilibili.com/${mid}/video`);
         const list = (((data || {}).list || {}).vlist || []);
         total = Number((((data || {}).page || {}).count) || total || list.length);
         videos.push(...list.map((item) => ({

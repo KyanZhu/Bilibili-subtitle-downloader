@@ -4,6 +4,10 @@ const { createBilibiliClient } = require('./bilibili-client');
 const { downloadUploaderSubtitles } = require('./uploader');
 const { resolveUploader } = require('./uploader');
 
+function wait(ms) {
+  return new Promise((resolve) => setTimeout(resolve, ms));
+}
+
 function defaultSubscriptionsPath() {
   return path.join(process.cwd(), 'subscriptions.json');
 }
@@ -108,9 +112,12 @@ async function updateSubscriptions(options = {}) {
   const subscriptions = await listSubscriptions({ subscriptionsPath });
   const enabled = subscriptions.filter((subscription) => subscription.enabled !== false);
   const runDownload = options.downloadUploaderSubtitles || downloadUploaderSubtitles;
+  const delay = options.delay || wait;
+  const delayMs = Number.isFinite(Number(options.delayMs)) ? Math.max(0, Number(options.delayMs)) : 800;
   const results = [];
 
-  for (const subscription of enabled) {
+  for (let index = 0; index < enabled.length; index += 1) {
+    const subscription = enabled[index];
     try {
       const result = await runDownload({
         uploader: String(subscription.mid || subscription.input),
@@ -135,6 +142,10 @@ async function updateSubscriptions(options = {}) {
         status: 'error',
         error: error.message || String(error),
       });
+    }
+
+    if (index < enabled.length - 1 && delayMs > 0) {
+      await delay(delayMs);
     }
   }
 

@@ -2,6 +2,10 @@ const test = require('node:test');
 const assert = require('node:assert/strict');
 const { createBilibiliClient } = require('../src/bilibili-client');
 
+function response(data) {
+  return { ok: true, json: async () => ({ code: 0, data }) };
+}
+
 test('sends configured cookie and referer headers', async () => {
   const calls = [];
   const client = createBilibiliClient({
@@ -15,6 +19,31 @@ test('sends configured cookie and referer headers', async () => {
   await client.getPages('BV1Jh5d68Er3');
   assert.equal(calls[0].options.headers.Cookie, 'SESSDATA=abc');
   assert.equal(calls[0].options.headers.Referer, 'https://www.bilibili.com/video/BV1Jh5d68Er3');
+  assert.match(calls[0].options.headers['User-Agent'], /Chrome\/125/);
+  assert.equal(calls[0].options.headers.Accept, 'application/json, text/plain, */*');
+});
+
+test('uses space referer for uploader video list requests', async () => {
+  const calls = [];
+  const client = createBilibiliClient({
+    fetch: async (url, options) => {
+      calls.push({ url, options });
+      if (url.includes('/x/web-interface/nav')) {
+        return response({
+          wbi_img: {
+            img_url: 'https://i0.hdslb.com/bfs/wbi/0123456789abcdef0123456789abcdef.png',
+            sub_url: 'https://i0.hdslb.com/bfs/wbi/fedcba9876543210fedcba9876543210.png',
+          },
+        });
+      }
+      return response({ page: { count: 0 }, list: { vlist: [] } });
+    },
+  });
+
+  await client.getUploaderVideos('1350959407', { maxPages: 1 });
+  const videoListCall = calls.find((call) => call.url.includes('/x/space/wbi/arc/search'));
+
+  assert.equal(videoListCall.options.headers.Referer, 'https://space.bilibili.com/1350959407/video');
 });
 
 test('normalizes protocol-relative subtitle urls', () => {

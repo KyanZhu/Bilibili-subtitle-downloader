@@ -105,3 +105,22 @@ test('updates enabled subscriptions with incremental uploader downloads', async 
   assert.equal(seen[0].incrementalUpdate, true);
   assert.equal(seen[0].groupByDate, true);
 });
+
+test('waits between enabled subscription updates', async () => {
+  const temp = await fs.mkdtemp(path.join(os.tmpdir(), 'bili-sub-'));
+  const subscriptionsPath = path.join(temp, 'subscriptions.json');
+  await fs.writeFile(subscriptionsPath, JSON.stringify([
+    { mid: 1, name: 'one', input: '1', enabled: true },
+    { mid: 2, name: 'two', input: '2', enabled: true },
+  ]), 'utf8');
+  const delays = [];
+
+  await updateSubscriptions({
+    subscriptionsPath,
+    delayMs: 1200,
+    delay: async (ms) => delays.push(ms),
+    downloadUploaderSubtitles: async () => ({ status: 'completed', batch: { summary: { total: 0 } } }),
+  });
+
+  assert.deepEqual(delays, [1200]);
+});
