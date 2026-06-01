@@ -50,35 +50,64 @@ function summarize(results) {
 async function downloadBatchSubtitles(options) {
   const inputs = Array.isArray(options.inputs) ? options.inputs : parseBatchInputs(options.inputs);
   const delayMs = Number.isFinite(Number(options.delayMs)) ? Math.max(0, Number(options.delayMs)) : 800;
+  const retryCount = Number.isFinite(Number(options.retryCount)) ? Math.max(0, Number(options.retryCount)) : 2;
+  const retryStepMs = Number.isFinite(Number(options.retryStepMs)) ? Math.max(0, Number(options.retryStepMs)) : 300;
   const delay = options.delay || wait;
   const runDownload = options.downloadVideoSubtitles || downloadVideoSubtitles;
+  const onProgress = options.onProgress || (() => {});
   const results = [];
 
   for (let index = 0; index < inputs.length; index += 1) {
     const item = inputs[index];
     const input = typeof item === 'string' ? item : item.input;
-    try {
-      results.push(await runDownload({
-        input,
-        outputDir: item.outputDir || options.outputDir,
-        cookie: options.cookie,
-        chineseOnly: options.chineseOnly,
-        plainText: options.plainText,
-        renameByTitle: options.renameByTitle,
-        collectPlainText: options.collectPlainText,
-        downloadAudioWhenNoSubtitles: options.downloadAudioWhenNoSubtitles,
-        useDateFolder: item.useDateFolder !== undefined ? item.useDateFolder : options.useDateFolder,
-        videoFolderName: item.videoFolderName,
-        now: item.now || options.now,
-        client: options.client,
-      }));
-    } catch (error) {
-      results.push({
-        input,
-        status: 'error',
-        error: error.message || String(error),
-      });
+    let result;
+    for (let attempt = 0; attempt <= retryCount; attempt += 1) {
+      try {
+        result = await runDownload({
+          input,
+          outputDir: item.outputDir || options.outputDir,
+          cookie: options.cookie,
+          chineseOnly: options.chineseOnly,
+          plainText: options.plainText,
+          renameByTitle: options.renameByTitle,
+          collectPlainText: options.collectPlainText,
+          downloadAudioWhenNoSubtitles: options.downloadAudioWhenNoSubtitles,
+          useDateFolder: item.useDateFolder !== undefined ? item.useDateFolder : options.useDateFolder,
+          videoFolderName: item.videoFolderName,
+          now: item.now || options.now,
+          client: options.client,
+        });
+        break;
+      } catch (error) {
+        if (attempt >= retryCount) {
+          result = {
+            input,
+            status: 'error',
+            error: error.message || String(error),
+          };
+          break;
+        }
+        const retryDelayMs = delayMs + ((attempt + 1) * retryStepMs);
+        onProgress({
+          type: 'retry',
+          input,
+          attempt: attempt + 1,
+          delayMs: retryDelayMs,
+          message: `重试抓取: ${input} (${retryDelayMs}ms)`,
+        });
+        await delay(retryDelayMs);
+      }
     }
+    results.push(result);
+    onProgress({
+      type: 'item',
+      input,
+      status: result.status,
+      result,
+      message: result.status === 'error'
+        ? `抓取失败: ${input} (${result.error || ''})`
+        : `成功抓取: ${result.title || result.bvid || input}`,
+    });
 
     if (index < inputs.length - 1 && delayMs > 0) {
       await delay(delayMs);

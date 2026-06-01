@@ -119,6 +119,36 @@ test('download api forwards batch options to batch downloader', async () => {
   }
 });
 
+test('download api streams progress logs when requested', async () => {
+  const server = createGuiServer({
+    downloadBatchSubtitles: async (options) => {
+      options.onProgress({ type: 'item', message: '成功抓取: BV1111111111' });
+      return { status: 'completed', results: [], summary: { total: 1 } };
+    },
+  });
+  const port = await listen(server);
+
+  try {
+    const response = await fetch(`http://127.0.0.1:${port}/api/download`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        input: 'BV1111111111\nBV2222222222',
+        streamLogs: true,
+      }),
+    });
+    const lines = (await response.text()).trim().split('\n').map((line) => JSON.parse(line));
+
+    assert.match(response.headers.get('Content-Type'), /application\/x-ndjson/);
+    assert.equal(lines[0].type, 'log');
+    assert.equal(lines[0].message, '成功抓取: BV1111111111');
+    assert.equal(lines[1].type, 'result');
+    assert.equal(lines[1].payload.status, 'completed');
+  } finally {
+    server.close();
+  }
+});
+
 test('download api forwards uploader mode to uploader downloader', async () => {
   let received;
   const server = createGuiServer({

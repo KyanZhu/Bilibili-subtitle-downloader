@@ -114,35 +114,65 @@ async function updateSubscriptions(options = {}) {
   const runDownload = options.downloadUploaderSubtitles || downloadUploaderSubtitles;
   const delay = options.delay || wait;
   const delayMs = Number.isFinite(Number(options.delayMs)) ? Math.max(0, Number(options.delayMs)) : 800;
+  const retryCount = Number.isFinite(Number(options.retryCount)) ? Math.max(0, Number(options.retryCount)) : 2;
+  const retryStepMs = Number.isFinite(Number(options.retryStepMs)) ? Math.max(0, Number(options.retryStepMs)) : 300;
+  const onProgress = options.onProgress || (() => {});
   const results = [];
 
   for (let index = 0; index < enabled.length; index += 1) {
     const subscription = enabled[index];
-    try {
-      const result = await runDownload({
-        uploader: String(subscription.mid || subscription.input),
-        outputDir: options.outputDir,
-        cookie: options.cookie,
-        chineseOnly: options.chineseOnly,
-        plainText: options.plainText,
-        renameByTitle: options.renameByTitle,
-        collectPlainText: options.collectPlainText,
-        downloadAudioWhenNoSubtitles: options.downloadAudioWhenNoSubtitles,
-        incrementalUpdate: options.incrementalUpdate !== false,
-        groupByDate: options.groupByDate,
-        now: options.now,
-        delayMs: options.delayMs,
-        publishedAfter: options.publishedAfter,
-        publishedBefore: options.publishedBefore,
-      });
-      results.push({ subscription, status: 'updated', result });
-    } catch (error) {
-      results.push({
-        subscription,
-        status: 'error',
-        error: error.message || String(error),
-      });
+    let item;
+    for (let attempt = 0; attempt <= retryCount; attempt += 1) {
+      try {
+        const result = await runDownload({
+          uploader: String(subscription.mid || subscription.input),
+          outputDir: options.outputDir,
+          cookie: options.cookie,
+          chineseOnly: options.chineseOnly,
+          plainText: options.plainText,
+          renameByTitle: options.renameByTitle,
+          collectPlainText: options.collectPlainText,
+          downloadAudioWhenNoSubtitles: options.downloadAudioWhenNoSubtitles,
+          incrementalUpdate: options.incrementalUpdate !== false,
+          groupByDate: options.groupByDate,
+          now: options.now,
+          delayMs: options.delayMs,
+          onProgress: options.onProgress,
+          publishedAfter: options.publishedAfter,
+          publishedBefore: options.publishedBefore,
+        });
+        item = { subscription, status: 'updated', result };
+        break;
+      } catch (error) {
+        if (attempt >= retryCount) {
+          item = {
+            subscription,
+            status: 'error',
+            error: error.message || String(error),
+          };
+          break;
+        }
+        const retryDelayMs = delayMs + ((attempt + 1) * retryStepMs);
+        onProgress({
+          type: 'retry',
+          subscription,
+          attempt: attempt + 1,
+          delayMs: retryDelayMs,
+          message: `重试抓取: ${subscription.name || subscription.mid} (${retryDelayMs}ms)`,
+        });
+        await delay(retryDelayMs);
+      }
     }
+    results.push(item);
+    onProgress({
+      type: 'subscription',
+      subscription,
+      status: item.status,
+      result: item.result,
+      message: item.status === 'error'
+        ? `抓取失败: ${subscription.name || subscription.mid} (${item.error || ''})`
+        : `成功抓取: ${subscription.name || subscription.mid}`,
+    });
 
     if (index < enabled.length - 1 && delayMs > 0) {
       await delay(delayMs);

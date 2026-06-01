@@ -94,6 +94,7 @@ async function downloadUploaderSubtitles(options) {
     downloadAudioWhenNoSubtitles: options.downloadAudioWhenNoSubtitles,
     useDateFolder: false,
     delayMs: options.delayMs,
+    onProgress: options.onProgress,
     client,
   });
   batch.summary = {

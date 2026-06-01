@@ -95,8 +95,13 @@ function loadAppContext(setup = () => {}) {
     },
     fetch: async (url, options = {}) => {
       fetchCalls.push({ url, options });
-      return { ok: true, json: async () => ({ status: 'completed', results: [], summary: { total: 0 } }) };
+      return {
+        ok: true,
+        headers: { get: () => 'application/json; charset=utf-8' },
+        json: async () => ({ status: 'completed', results: [], summary: { total: 0 } }),
+      };
     },
+    TextDecoder,
   };
   setup(elements, tabButtons, tabPanels, fetchCalls);
   vm.createContext(context);
@@ -172,6 +177,7 @@ test('submits uploader tab to download api instead of subscription update api', 
   const body = JSON.parse(context.__fetchCalls[0].options.body);
   assert.equal(body.uploaderMode, true);
   assert.equal(body.uploader, '1350959407');
+  assert.equal(body.streamLogs, true);
 });
 
 test('submits subscriptions tab to subscription update api', async () => {
@@ -184,4 +190,10 @@ test('submits subscriptions tab to subscription update api', async () => {
 
   assert.equal(context.__fetchCalls[0].url, '/api/subscriptions');
   assert.equal(context.__fetchCalls[1].url, '/api/subscriptions/update');
+  const body = JSON.parse(context.__fetchCalls[1].options.body);
+  assert.equal(body.streamLogs, true);
+  assert.equal(body.chineseOnly, true);
+  assert.equal(body.plainText, true);
+  assert.equal(body.collectPlainText, true);
+  assert.match(body.startDate, /^\d{4}-\d{2}-\d{2}$/);
 });

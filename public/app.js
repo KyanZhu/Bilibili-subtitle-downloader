@@ -32,6 +32,14 @@ let lastPayload = null;
 let detailsVisible = false;
 let activeTab = 'video';
 
+function todayDateValue() {
+  const date = new Date();
+  const year = date.getFullYear();
+  const month = String(date.getMonth() + 1).padStart(2, '0');
+  const day = String(date.getDate()).padStart(2, '0');
+  return `${year}-${month}-${day}`;
+}
+
 function setStatus(label, className) {
   statusEl.className = `status ${className || ''}`.trim();
   statusEl.textContent = label;
@@ -229,6 +237,13 @@ function updateDetailVisibility() {
   detailToggle.textContent = detailsVisible ? '隐藏详情' : '显示详情';
 }
 
+function appendLog(message) {
+  const text = String(message || '').trim();
+  if (!text) return;
+  const current = summaryOutput.textContent.trim();
+  summaryOutput.textContent = current ? `${current}\n${text}` : text;
+}
+
 function showResult(kind, payload, options = {}) {
   lastPayload = payload;
   detailsVisible = Boolean(options.showDetails);
@@ -237,6 +252,47 @@ function showResult(kind, payload, options = {}) {
   resultOutput.textContent = typeof payload === 'string' ? payload : JSON.stringify(payload, null, 2);
   detailToggle.disabled = typeof payload === 'string' || !payload;
   updateDetailVisibility();
+}
+
+async function readTaskResponse(response) {
+  const contentType = response.headers.get('Content-Type') || '';
+  if (!contentType.includes('application/x-ndjson') || !response.body) {
+    const payload = await response.json();
+    return { payload, ok: response.ok };
+  }
+
+  const reader = response.body.getReader();
+  const decoder = new TextDecoder();
+  let buffer = '';
+  let finalPayload = null;
+  let finalError = null;
+
+  while (true) {
+    const { value, done } = await reader.read();
+    if (done) break;
+    buffer += decoder.decode(value, { stream: true });
+    const lines = buffer.split('\n');
+    buffer = lines.pop() || '';
+    for (const line of lines) {
+      if (!line.trim()) continue;
+      const event = JSON.parse(line);
+      if (event.type === 'log') appendLog(event.message);
+      if (event.type === 'result') finalPayload = event.payload;
+      if (event.type === 'error') finalError = event.error;
+    }
+  }
+
+  if (buffer.trim()) {
+    const event = JSON.parse(buffer);
+    if (event.type === 'log') appendLog(event.message);
+    if (event.type === 'result') finalPayload = event.payload;
+    if (event.type === 'error') finalError = event.error;
+  }
+
+  if (finalError) {
+    return { payload: { error: finalError }, ok: false };
+  }
+  return { payload: finalPayload, ok: response.ok };
 }
 
 function setActiveTab(tabName) {
@@ -252,6 +308,10 @@ function setActiveTab(tabName) {
     panel.hidden = !isActive;
   }
   if (tabName === 'subscriptions') {
+    if (!startDateInput.value) startDateInput.value = todayDateValue();
+    chineseOnlyInput.checked = true;
+    plainTextInput.checked = true;
+    collectPlainTextInput.checked = true;
     loadSubscriptions();
   }
 }
@@ -274,10 +334,10 @@ form.addEventListener('submit', async (event) => {
       const response = await fetch('/api/subscriptions/update', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify(commonPayload(tabName)),
+        body: JSON.stringify({ ...commonPayload(tabName), streamLogs: true }),
       });
-      const payload = await response.json();
-      if (!response.ok) throw new Error(payload.error || `HTTP ${response.status}`);
+      const { payload, ok } = await readTaskResponse(response);
+      if (!ok) throw new Error(payload.error || `HTTP ${response.status}`);
       setStatus('Done', 'is-done');
       showResult('订阅完成', payload);
     } catch (error) {
@@ -298,14 +358,15 @@ form.addEventListener('submit', async (event) => {
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({
         ...commonPayload(tabName),
+        streamLogs: true,
         input: videoInput.value,
         uploaderMode: tabName === 'uploader',
         uploader: uploaderInput.value,
       }),
     });
-    const payload = await response.json();
+    const { payload, ok } = await readTaskResponse(response);
 
-    if (!response.ok) {
+    if (!ok) {
       throw new Error(payload.error || `HTTP ${response.status}`);
     }
 

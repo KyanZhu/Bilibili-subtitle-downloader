@@ -30,6 +30,17 @@ function sendJson(response, statusCode, payload) {
   response.end(JSON.stringify(payload));
 }
 
+function sendJsonLine(response, payload) {
+  response.write(`${JSON.stringify(payload)}\n`);
+}
+
+function startStream(response) {
+  response.writeHead(200, {
+    'Content-Type': 'application/x-ndjson; charset=utf-8',
+    'Cache-Control': 'no-store',
+  });
+}
+
 function openFolder(folderPath) {
   return new Promise((resolve, reject) => {
     const quotedPath = String(folderPath).replace(/'/g, "''");
@@ -143,6 +154,15 @@ function createGuiServer(options = {}) {
       if (request.method === 'POST' && url.pathname === '/api/subscriptions/update') {
         const body = await readRequestJson(request);
         const outputDir = String(body.outputDir || 'downloads').trim() || 'downloads';
+        const streamLogs = Boolean(body.streamLogs);
+        if (streamLogs) {
+          startStream(response);
+        }
+        const onProgress = streamLogs ? (event) => sendJsonLine(response, {
+          type: 'log',
+          message: event.message,
+          event,
+        }) : undefined;
         const result = await runUpdateSubscriptions({
           outputDir,
           cookie: parseCookieText(body.cookieText || ''),
@@ -154,6 +174,7 @@ function createGuiServer(options = {}) {
           groupByDate: Boolean(body.groupByDate),
           incrementalUpdate: body.incrementalUpdate !== false,
           delayMs: Number(body.delayMs || 800),
+          onProgress,
           publishedAfter: parseDateBoundary(body.startDate),
           publishedBefore: parseDateBoundary(body.endDate, true),
         });
@@ -166,6 +187,11 @@ function createGuiServer(options = {}) {
             result.collectedPlainTextPath = collectionPath;
           }
         }
+        if (streamLogs) {
+          sendJsonLine(response, { type: 'result', payload: result });
+          response.end();
+          return;
+        }
         sendJson(response, 200, result);
         return;
       }
@@ -173,6 +199,15 @@ function createGuiServer(options = {}) {
       if (request.method === 'POST' && url.pathname === '/api/download') {
         const body = await readRequestJson(request);
         const outputDir = String(body.outputDir || 'downloads').trim() || 'downloads';
+        const streamLogs = Boolean(body.streamLogs);
+        if (streamLogs) {
+          startStream(response);
+        }
+        const onProgress = streamLogs ? (event) => sendJsonLine(response, {
+          type: 'log',
+          message: event.message,
+          event,
+        }) : undefined;
         const commonOptions = {
           outputDir,
           cookie: parseCookieText(body.cookieText || ''),
@@ -194,6 +229,7 @@ function createGuiServer(options = {}) {
             delayMs: Number(body.delayMs || 800),
             incrementalUpdate: Boolean(body.incrementalUpdate),
             groupByDate: Boolean(body.groupByDate),
+            onProgress,
             publishedAfter: parseDateBoundary(body.startDate),
             publishedBefore: parseDateBoundary(body.endDate, true),
           });
@@ -205,6 +241,11 @@ function createGuiServer(options = {}) {
             if (collectionPath) {
               result.collectedPlainTextPath = collectionPath;
             }
+          }
+          if (streamLogs) {
+            sendJsonLine(response, { type: 'result', payload: result });
+            response.end();
+            return;
           }
           sendJson(response, 200, result);
           return;
@@ -221,10 +262,19 @@ function createGuiServer(options = {}) {
           ...commonOptions,
           inputs,
           delayMs: Number(body.delayMs || 800),
+          onProgress,
         }) : await runDownload({
           ...commonOptions,
           input: inputs[0],
         });
+        if (inputs.length === 1 && streamLogs) {
+          sendJsonLine(response, {
+            type: 'log',
+            message: result.status === 'error'
+              ? `抓取失败: ${inputs[0]} (${result.error || ''})`
+              : `成功抓取: ${result.title || result.bvid || inputs[0]}`,
+          });
+        }
         if (body.collectPlainText) {
           const collectionPath = await runWriteCollectedPlainText(result, {
             outputDir: 'downloads',
@@ -233,6 +283,11 @@ function createGuiServer(options = {}) {
           if (collectionPath) {
             result.collectedPlainTextPath = collectionPath;
           }
+        }
+        if (streamLogs) {
+          sendJsonLine(response, { type: 'result', payload: result });
+          response.end();
+          return;
         }
         sendJson(response, 200, result);
         return;
@@ -259,6 +314,11 @@ function createGuiServer(options = {}) {
       });
       response.end(content);
     } catch (error) {
+      if (response.headersSent) {
+        sendJsonLine(response, { type: 'error', error: error.message || String(error) });
+        response.end();
+        return;
+      }
       const statusCode = error.code === 'ENOENT' ? 404 : 500;
       sendJson(response, statusCode, { error: error.message || String(error) });
     }

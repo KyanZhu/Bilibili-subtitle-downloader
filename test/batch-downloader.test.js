@@ -55,6 +55,31 @@ test('keeps batch running when one item fails', async () => {
   ]);
 });
 
+test('retries failed batch items with increasing delay', async () => {
+  let attempts = 0;
+  const delays = [];
+  const events = [];
+
+  const result = await downloadBatchSubtitles({
+    inputs: ['BV_RETRY'],
+    delayMs: 800,
+    retryCount: 2,
+    retryStepMs: 300,
+    delay: async (ms) => delays.push(ms),
+    onProgress: (event) => events.push(event),
+    downloadVideoSubtitles: async (options) => {
+      attempts += 1;
+      if (attempts < 3) throw new Error('HTTP 412');
+      return { bvid: options.input, status: 'downloaded', downloaded: [] };
+    },
+  });
+
+  assert.equal(result.summary.downloaded, 1);
+  assert.equal(attempts, 3);
+  assert.deepEqual(delays, [1100, 1400]);
+  assert.deepEqual(events.map((event) => event.type), ['retry', 'retry', 'item']);
+});
+
 test('passes per-video folder names to downloader', async () => {
   const calls = [];
 
