@@ -9,6 +9,7 @@ const {
   listSubscriptions,
   parseSubscriptionInputs,
   removeSubscription,
+  retryDelayFor,
   updateSubscriptions,
 } = require('../src/subscriptions');
 
@@ -123,4 +124,10 @@ test('waits between enabled subscription updates', async () => {
   });
 
   assert.deepEqual(delays, [1200]);
+});
+
+test('uses longer retry delays for HTTP 412 subscription failures', () => {
+  assert.equal(retryDelayFor(new Error('uploader videos failed: HTTP 412'), 0, 800, 300), 5300);
+  assert.equal(retryDelayFor(new Error('uploader videos failed: HTTP 412'), 1, 800, 300), 10600);
+  assert.equal(retryDelayFor(new Error('temporary'), 0, 800, 300), 1100);
 });

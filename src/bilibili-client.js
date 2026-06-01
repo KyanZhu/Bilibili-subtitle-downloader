@@ -1,5 +1,9 @@
 const { createWbiSigner, extractWbiKeyPart } = require('./wbi');
 
+function wait(ms) {
+  return new Promise((resolve) => setTimeout(resolve, ms));
+}
+
 function createBilibiliClient(options = {}) {
   const fetchImpl = options.fetch || globalThis.fetch;
   const cookie = options.cookie || '';
@@ -85,6 +89,8 @@ function createBilibiliClient(options = {}) {
     async getUploaderVideos(mid, options = {}) {
       const pageSize = options.pageSize || 30;
       const maxPages = options.maxPages || 20;
+      const pageDelayMs = Number.isFinite(Number(options.pageDelayMs)) ? Math.max(0, Number(options.pageDelayMs)) : 0;
+      const delay = options.delay || wait;
       const videos = [];
       let total = 0;
 
@@ -105,6 +111,9 @@ function createBilibiliClient(options = {}) {
         })));
         if (videos.length >= total || list.length < pageSize) {
           break;
+        }
+        if (pageDelayMs > 0) {
+          await delay(pageDelayMs);
         }
       }
 

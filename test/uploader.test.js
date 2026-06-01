@@ -42,6 +42,28 @@ test('downloads uploader videos into uploader-name folder', async () => {
   assert.equal(seen[0].outputDir, path.join('downloads', '三七床车流浪中国'));
 });
 
+test('uses smaller uploader list pages and a conservative page delay', async () => {
+  const seen = {};
+  await downloadUploaderSubtitles({
+    uploader: '1350959407',
+    outputDir: 'downloads',
+    delayMs: 5000,
+    client: {
+      resolveUploaderByName: async () => ({ mid: 1350959407, name: 'up' }),
+      getUploaderInfo: async () => ({ mid: 1350959407, name: 'up' }),
+      getUploaderVideos: async (mid, options) => {
+        seen.mid = mid;
+        seen.options = options;
+        return { total: 0, videos: [] };
+      },
+    },
+    downloadBatchSubtitles: async () => ({ status: 'completed', summary: { total: 0 }, results: [] }),
+  });
+
+  assert.equal(seen.options.pageSize, 20);
+  assert.equal(seen.options.pageDelayMs, 3000);
+});
+
 test('filters uploader videos by publish time before downloading', async () => {
   const seen = [];
   const result = await downloadUploaderSubtitles({

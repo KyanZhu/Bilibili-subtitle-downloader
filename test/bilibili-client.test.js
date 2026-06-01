@@ -46,6 +46,35 @@ test('uses space referer for uploader video list requests', async () => {
   assert.equal(videoListCall.options.headers.Referer, 'https://space.bilibili.com/1350959407/video');
 });
 
+test('waits between uploader video list pages when configured', async () => {
+  const delays = [];
+  const client = createBilibiliClient({
+    fetch: async (url) => {
+      if (url.includes('/x/web-interface/nav')) {
+        return response({
+          wbi_img: {
+            img_url: 'https://i0.hdslb.com/bfs/wbi/0123456789abcdef0123456789abcdef.png',
+            sub_url: 'https://i0.hdslb.com/bfs/wbi/fedcba9876543210fedcba9876543210.png',
+          },
+        });
+      }
+      if (url.includes('pn=1')) {
+        return response({ page: { count: 3 }, list: { vlist: [{ bvid: 'BV1' }, { bvid: 'BV2' }] } });
+      }
+      return response({ page: { count: 3 }, list: { vlist: [{ bvid: 'BV3' }] } });
+    },
+  });
+
+  await client.getUploaderVideos('1350959407', {
+    pageSize: 2,
+    maxPages: 2,
+    pageDelayMs: 900,
+    delay: async (ms) => delays.push(ms),
+  });
+
+  assert.deepEqual(delays, [900]);
+});
+
 test('normalizes protocol-relative subtitle urls', () => {
   const client = createBilibiliClient({ fetch: async () => {} });
   assert.equal(client.normalizeSubtitleUrl('//example.com/a.json'), 'https://example.com/a.json');

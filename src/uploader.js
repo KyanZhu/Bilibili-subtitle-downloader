@@ -45,9 +45,12 @@ function publishedDateFolderName(video, fallbackDate = new Date()) {
 async function downloadUploaderSubtitles(options) {
   const client = options.client || createBilibiliClient({ cookie: options.cookie });
   const uploader = await resolveUploader(options.uploader, client);
+  const delayMs = Number.isFinite(Number(options.delayMs)) ? Math.max(0, Number(options.delayMs)) : 800;
   const videoList = await client.getUploaderVideos(uploader.mid, {
-    pageSize: options.pageSize || 30,
+    pageSize: options.pageSize || 20,
     maxPages: options.maxPages || 20,
+    pageDelayMs: options.pageDelayMs !== undefined ? options.pageDelayMs : Math.min(Math.max(delayMs, 800), 3000),
+    delay: options.delay,
   });
   const filteredVideos = videoList.videos.filter((video) => {
     const publishedAt = Number(video.created || video.pubdate || 0);

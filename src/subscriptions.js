@@ -8,6 +8,18 @@ function wait(ms) {
   return new Promise((resolve) => setTimeout(resolve, ms));
 }
 
+function isHttp412(error) {
+  return /HTTP 412/.test(error && (error.message || String(error)));
+}
+
+function retryDelayFor(error, attempt, delayMs, retryStepMs) {
+  const standardDelay = delayMs + ((attempt + 1) * retryStepMs);
+  if (!isHttp412(error)) {
+    return standardDelay;
+  }
+  return Math.max(standardDelay, 5000 + (attempt * 5000) + ((attempt + 1) * retryStepMs));
+}
+
 function defaultSubscriptionsPath() {
   return path.join(process.cwd(), 'subscriptions.json');
 }
@@ -152,7 +164,7 @@ async function updateSubscriptions(options = {}) {
           };
           break;
         }
-        const retryDelayMs = delayMs + ((attempt + 1) * retryStepMs);
+        const retryDelayMs = retryDelayFor(error, attempt, delayMs, retryStepMs);
         onProgress({
           type: 'retry',
           subscription,
@@ -195,6 +207,7 @@ module.exports = {
   addSubscription,
   addSubscriptions,
   defaultSubscriptionsPath,
+  retryDelayFor,
   listSubscriptions,
   parseSubscriptionInputs,
   removeSubscription,

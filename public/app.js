@@ -31,6 +31,7 @@ const subscriptionList = document.querySelector('#subscription-list');
 let lastPayload = null;
 let detailsVisible = false;
 let activeTab = 'video';
+let delayTouched = false;
 
 function todayDateValue() {
   const date = new Date();
@@ -314,7 +315,14 @@ function setActiveTab(tabName) {
     collectPlainTextInput.checked = true;
     loadSubscriptions();
   }
+  if ((tabName === 'uploader' || tabName === 'subscriptions') && !delayTouched && Number(delayInput.value || 0) <= 800) {
+    delayInput.value = '3000';
+  }
 }
+
+delayInput.addEventListener('input', () => {
+  delayTouched = true;
+});
 
 for (const button of tabButtons) {
   button.addEventListener('click', () => {
