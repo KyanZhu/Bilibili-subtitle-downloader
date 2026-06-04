@@ -67,6 +67,10 @@ function loadAppContext(setup = () => {}) {
     '#shutdown-button': createElementStub(),
     '#clear-button': createElementStub(),
     '#subscription-input': createElementStub(),
+    '#subscription-group-select': createElementStub(),
+    '#subscription-new-group-input': createElementStub(),
+    '#add-subscription-group-button': createElementStub(),
+    '#delete-subscription-group-button': createElementStub(),
     '#add-subscription-button': createElementStub(),
     '#subscription-list': createElementStub(),
   };
@@ -131,6 +135,9 @@ test('summarizes subscription update video totals from nested uploader results',
               errors: 0,
               noSubtitles: 1,
               authRequired: 0,
+              noSubtitleVideos: [
+                { bvid: 'BV_NO_SUB', title: 'No Subtitle Video' },
+              ],
             },
           },
         },
@@ -144,6 +151,8 @@ test('summarizes subscription update video totals from nested uploader results',
   assert.match(summary, /音频下载：1/);
   assert.match(summary, /跳过已有：1/);
   assert.match(summary, /没有字幕：1/);
+  assert.match(summary, /没有字幕的视频：/);
+  assert.match(summary, /No Subtitle Video \(BV_NO_SUB\)/);
 });
 
 test('summarizes batch subscription add results', () => {
@@ -189,11 +198,32 @@ test('submits subscriptions tab to subscription update api', async () => {
   await context.__elements['#download-form'].listeners.submit({ preventDefault: () => {} });
 
   assert.equal(context.__fetchCalls[0].url, '/api/subscriptions');
-  assert.equal(context.__fetchCalls[1].url, '/api/subscriptions/update');
-  const body = JSON.parse(context.__fetchCalls[1].options.body);
+  assert.equal(context.__fetchCalls[1].url, '/api/subscription-groups');
+  assert.equal(context.__fetchCalls[2].url, '/api/subscriptions/update');
+  const body = JSON.parse(context.__fetchCalls[2].options.body);
   assert.equal(body.streamLogs, true);
   assert.equal(body.chineseOnly, true);
   assert.equal(body.plainText, true);
   assert.equal(body.collectPlainText, true);
+  assert.equal(body.subscriptionGroup, '');
   assert.match(body.startDate, /^\d{4}-\d{2}-\d{2}$/);
+});
+
+test('creates and uses selected subscription group when adding subscriptions', async () => {
+  const context = loadAppContext((elements) => {
+    elements['#subscription-input'].value = '1350959407';
+    elements['#subscription-new-group-input'].value = '股评';
+  });
+
+  await context.__elements['#add-subscription-group-button'].listeners.click();
+  context.__elements['#subscription-group-select'].value = '股评';
+  context.__elements['#subscription-group-select'].listeners.change();
+  await context.__elements['#add-subscription-button'].listeners.click();
+
+  assert.equal(context.__fetchCalls[0].url, '/api/subscription-groups');
+  assert.equal(context.__fetchCalls.some((call) => call.url === '/api/subscriptions'), true);
+  const addCall = context.__fetchCalls.find((call) => call.url === '/api/subscriptions' && call.options.method === 'POST');
+  const body = JSON.parse(addCall.options.body);
+  assert.equal(body.input, '1350959407');
+  assert.equal(body.group, '股评');
 });

@@ -3,6 +3,7 @@ const path = require('node:path');
 const { createBilibiliClient } = require('./bilibili-client');
 const { downloadUploaderSubtitles } = require('./uploader');
 const { resolveUploader } = require('./uploader');
+const { sanitizeName } = require('./downloader');
 
 function wait(ms) {
   return new Promise((resolve) => setTimeout(resolve, ms));
@@ -24,6 +25,10 @@ function defaultSubscriptionsPath() {
   return path.join(process.cwd(), 'subscriptions.json');
 }
 
+function defaultGroupsPath() {
+  return path.join(process.cwd(), 'subscription-groups.json');
+}
+
 async function readJson(filePath) {
   try {
     return JSON.parse(await fs.readFile(filePath, 'utf8'));
@@ -35,6 +40,10 @@ async function readJson(filePath) {
 
 async function writeSubscriptions(filePath, subscriptions) {
   await fs.writeFile(filePath, `${JSON.stringify(subscriptions, null, 2)}\n`, 'utf8');
+}
+
+async function writeGroups(filePath, groups) {
+  await fs.writeFile(filePath, `${JSON.stringify(groups, null, 2)}\n`, 'utf8');
 }
 
 function parseSubscriptionInputs(value) {
@@ -57,9 +66,74 @@ async function listSubscriptions(options = {}) {
   return Array.isArray(list) ? list : [];
 }
 
+async function listSubscriptionGroups(options = {}) {
+  const groupsPath = options.groupsPath || defaultGroupsPath();
+  const subscriptionsPath = options.subscriptionsPath || defaultSubscriptionsPath();
+  const storedGroups = await readJson(groupsPath);
+  const subscriptions = await listSubscriptions({ subscriptionsPath });
+  const names = new Set();
+
+  if (Array.isArray(storedGroups)) {
+    for (const group of storedGroups) {
+      const name = sanitizeName(typeof group === 'string' ? group : group && group.name);
+      if (name) names.add(name);
+    }
+  }
+  for (const subscription of subscriptions) {
+    const name = sanitizeName(subscription && subscription.group);
+    if (name) names.add(name);
+  }
+
+  return Array.from(names).sort((left, right) => left.localeCompare(right, 'zh-CN'));
+}
+
+async function addSubscriptionGroup(options = {}) {
+  const groupsPath = options.groupsPath || defaultGroupsPath();
+  const group = sanitizeName(options.group || options.name || '');
+  if (!group) {
+    throw new Error('Subscription group name is required.');
+  }
+  const groups = await listSubscriptionGroups({
+    groupsPath,
+    subscriptionsPath: options.subscriptionsPath,
+  });
+  if (!groups.includes(group)) {
+    groups.push(group);
+  }
+  groups.sort((left, right) => left.localeCompare(right, 'zh-CN'));
+  await writeGroups(groupsPath, groups.map((name) => ({ name })));
+  return { name: group, groups };
+}
+
+async function removeSubscriptionGroup(options = {}) {
+  const groupsPath = options.groupsPath || defaultGroupsPath();
+  const subscriptionsPath = options.subscriptionsPath || defaultSubscriptionsPath();
+  const group = sanitizeName(options.group || options.name || '');
+  if (!group) {
+    throw new Error('Subscription group name is required.');
+  }
+
+  const groups = (await listSubscriptionGroups({ groupsPath, subscriptionsPath }))
+    .filter((name) => name !== group);
+  const subscriptions = await listSubscriptions({ subscriptionsPath });
+  let updatedSubscriptions = 0;
+  const nextSubscriptions = subscriptions.map((subscription) => {
+    if (sanitizeName(subscription.group || '') !== group) {
+      return subscription;
+    }
+    updatedSubscriptions += 1;
+    return { ...subscription, group: '' };
+  });
+
+  await writeGroups(groupsPath, groups.map((name) => ({ name })));
+  await writeSubscriptions(subscriptionsPath, nextSubscriptions);
+  return { removed: group, groups, updatedSubscriptions };
+}
+
 async function addSubscription(options) {
   const subscriptionsPath = options.subscriptionsPath || defaultSubscriptionsPath();
   const input = String(options.input || '').trim();
+  const group = sanitizeName(options.group || '');
   if (!input) {
     throw new Error('Subscription uploader input is required.');
   }
@@ -70,6 +144,7 @@ async function addSubscription(options) {
     mid: Number(uploader.mid),
     name: uploader.name,
     input,
+    group,
     enabled: true,
     updatedAt: null,
   };
@@ -81,21 +156,60 @@ async function addSubscription(options) {
 
 async function addSubscriptions(options) {
   const inputs = parseSubscriptionInputs(options.input);
+  const client = options.client || createBilibiliClient({ cookie: options.cookie });
+  const delay = options.delay || wait;
+  const delayMs = Number.isFinite(Number(options.delayMs)) ? Math.max(0, Number(options.delayMs)) : 800;
+  const retryCount = Number.isFinite(Number(options.retryCount)) ? Math.max(0, Number(options.retryCount)) : 2;
+  const retryStepMs = Number.isFinite(Number(options.retryStepMs)) ? Math.max(0, Number(options.retryStepMs)) : 300;
+  const onProgress = options.onProgress || (() => {});
   const results = [];
 
-  for (const input of inputs) {
-    try {
-      const item = await addSubscription({
-        ...options,
-        input,
-      });
-      results.push({ input, status: 'added', item });
-    } catch (error) {
-      results.push({
-        input,
-        status: 'error',
-        error: error.message || String(error),
-      });
+  for (let index = 0; index < inputs.length; index += 1) {
+    const input = inputs[index];
+    let result;
+    for (let attempt = 0; attempt <= retryCount; attempt += 1) {
+      try {
+        const item = await addSubscription({
+          ...options,
+          input,
+          client,
+        });
+        result = { input, status: 'added', item };
+        break;
+      } catch (error) {
+        if (attempt >= retryCount) {
+          result = {
+            input,
+            status: 'error',
+            error: error.message || String(error),
+          };
+          break;
+        }
+        const retryDelayMs = retryDelayFor(error, attempt, delayMs, retryStepMs);
+        onProgress({
+          type: 'retry',
+          input,
+          attempt: attempt + 1,
+          delayMs: retryDelayMs,
+          message: `重试添加订阅: ${input} (${retryDelayMs}ms)`,
+        });
+        await delay(retryDelayMs);
+      }
+    }
+
+    results.push(result);
+    onProgress({
+      type: 'subscription-add',
+      input,
+      status: result.status,
+      result,
+      message: result.status === 'error'
+        ? `添加失败: ${input} (${result.error || ''})`
+        : `添加成功: ${result.item.name || result.item.mid}`,
+    });
+
+    if (index < inputs.length - 1 && delayMs > 0) {
+      await delay(delayMs);
     }
   }
 
@@ -122,7 +236,12 @@ async function removeSubscription(options) {
 async function updateSubscriptions(options = {}) {
   const subscriptionsPath = options.subscriptionsPath || defaultSubscriptionsPath();
   const subscriptions = await listSubscriptions({ subscriptionsPath });
-  const enabled = subscriptions.filter((subscription) => subscription.enabled !== false);
+  const groupFilter = options.subscriptionGroup === undefined ? undefined : sanitizeName(options.subscriptionGroup || '');
+  const enabled = subscriptions.filter((subscription) => {
+    if (subscription.enabled === false) return false;
+    if (groupFilter === undefined) return true;
+    return sanitizeName(subscription.group || '') === groupFilter;
+  });
   const runDownload = options.downloadUploaderSubtitles || downloadUploaderSubtitles;
   const delay = options.delay || wait;
   const delayMs = Number.isFinite(Number(options.delayMs)) ? Math.max(0, Number(options.delayMs)) : 800;
@@ -138,7 +257,9 @@ async function updateSubscriptions(options = {}) {
       try {
         const result = await runDownload({
           uploader: String(subscription.mid || subscription.input),
-          outputDir: options.outputDir,
+          outputDir: subscription.group
+            ? path.join(options.outputDir || 'downloads', sanitizeName(subscription.group))
+            : options.outputDir,
           cookie: options.cookie,
           chineseOnly: options.chineseOnly,
           plainText: options.plainText,
@@ -206,10 +327,14 @@ async function updateSubscriptions(options = {}) {
 module.exports = {
   addSubscription,
   addSubscriptions,
+  addSubscriptionGroup,
   defaultSubscriptionsPath,
+  defaultGroupsPath,
   retryDelayFor,
+  listSubscriptionGroups,
   listSubscriptions,
   parseSubscriptionInputs,
+  removeSubscriptionGroup,
   removeSubscription,
   updateSubscriptions,
 };

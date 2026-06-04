@@ -101,9 +101,13 @@ test('passes per-video folder names to downloader', async () => {
 test('summarizes audio fallback downloads', () => {
   const summary = summarize([
     { input: 'BV_AUDIO', status: 'audio-downloaded' },
-    { input: 'BV_NO_SUBS', status: 'no-subtitles' },
+    { input: 'BV_NO_SUBS', bvid: 'BV_NO_SUBS', title: 'No Subs', status: 'no-subtitles' },
+    { input: 'BV_AUTH', bvid: 'BV_AUTH', title: 'Auth Required', status: 'auth-required' },
   ]);
 
   assert.equal(summary.audioDownloaded, 1);
   assert.equal(summary.noSubtitles, 1);
+  assert.equal(summary.authRequired, 1);
+  assert.deepEqual(summary.noSubtitleVideos, [{ input: 'BV_NO_SUBS', bvid: 'BV_NO_SUBS', title: 'No Subs' }]);
+  assert.deepEqual(summary.authRequiredVideos, [{ input: 'BV_AUTH', bvid: 'BV_AUTH', title: 'Auth Required' }]);
 });

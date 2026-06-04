@@ -5,10 +5,13 @@ const os = require('node:os');
 const path = require('node:path');
 const {
   addSubscription,
+  addSubscriptionGroup,
   addSubscriptions,
+  listSubscriptionGroups,
   listSubscriptions,
   parseSubscriptionInputs,
   removeSubscription,
+  removeSubscriptionGroup,
   retryDelayFor,
   updateSubscriptions,
 } = require('../src/subscriptions');
@@ -31,6 +34,7 @@ test('adds resolved uploader subscriptions and persists them', async () => {
 
   const added = await addSubscription({
     input: '1350959407',
+    group: '股评',
     subscriptionsPath,
     client,
   });
@@ -39,6 +43,7 @@ test('adds resolved uploader subscriptions and persists them', async () => {
   assert.equal(added.mid, 1350959407);
   assert.equal(list.length, 1);
   assert.equal(list[0].name, '三七床车流浪中国');
+  assert.equal(list[0].group, '股评');
 });
 
 test('adds subscriptions in a batch and continues after errors', async () => {
@@ -63,6 +68,104 @@ test('adds subscriptions in a batch and continues after errors', async () => {
   assert.equal(result.summary.added, 2);
   assert.equal(result.summary.errors, 1);
   assert.deepEqual(list.map((item) => item.mid), [1, 3]);
+});
+
+test('retries failed subscription adds and waits between inputs', async () => {
+  const temp = await fs.mkdtemp(path.join(os.tmpdir(), 'bili-sub-'));
+  const subscriptionsPath = path.join(temp, 'subscriptions.json');
+  const delays = [];
+  const events = [];
+  let calls = 0;
+  const client = {
+    getUploaderInfo: async (mid) => {
+      calls += 1;
+      if (calls === 1) throw new Error('uploader info failed: HTTP 412');
+      return { mid: Number(mid), name: `up-${mid}` };
+    },
+    resolveUploaderByName: async () => ({ mid: 3, name: 'named-up' }),
+  };
+
+  const result = await addSubscriptions({
+    input: '1\n2',
+    subscriptionsPath,
+    client,
+    delayMs: 1000,
+    retryStepMs: 300,
+    retryCount: 1,
+    delay: async (ms) => delays.push(ms),
+    onProgress: (event) => events.push(event),
+  });
+
+  assert.equal(result.summary.added, 2);
+  assert.deepEqual(delays, [5300, 1000]);
+  assert.deepEqual(events.map((event) => event.type), ['retry', 'subscription-add', 'subscription-add']);
+});
+
+test('downloads grouped subscriptions under group folders', async () => {
+  const temp = await fs.mkdtemp(path.join(os.tmpdir(), 'bili-sub-'));
+  const subscriptionsPath = path.join(temp, 'subscriptions.json');
+  await fs.writeFile(subscriptionsPath, JSON.stringify([
+    { mid: 1, name: 'one', input: '1', group: '股评', enabled: true },
+  ]), 'utf8');
+  const seen = [];
+
+  await updateSubscriptions({
+    subscriptionsPath,
+    outputDir: temp,
+    downloadUploaderSubtitles: async (options) => {
+      seen.push(options);
+      return { status: 'completed', uploader: { mid: 1, name: 'one' }, batch: { summary: { total: 0 } } };
+    },
+  });
+
+  assert.equal(seen[0].outputDir, path.join(temp, '股评'));
+});
+
+test('lists saved groups and groups discovered from subscriptions', async () => {
+  const temp = await fs.mkdtemp(path.join(os.tmpdir(), 'bili-sub-'));
+  const subscriptionsPath = path.join(temp, 'subscriptions.json');
+  const groupsPath = path.join(temp, 'subscription-groups.json');
+  await fs.writeFile(subscriptionsPath, JSON.stringify([
+    { mid: 1, name: 'one', input: '1', group: '股评', enabled: true },
+  ]), 'utf8');
+  await fs.writeFile(groupsPath, JSON.stringify([{ name: '科技' }]), 'utf8');
+
+  const groups = await listSubscriptionGroups({ subscriptionsPath, groupsPath });
+
+  assert.equal(groups.length, 2);
+  assert.equal(groups.includes('股评'), true);
+  assert.equal(groups.includes('科技'), true);
+});
+
+test('adds subscription groups without duplicating names', async () => {
+  const temp = await fs.mkdtemp(path.join(os.tmpdir(), 'bili-sub-'));
+  const groupsPath = path.join(temp, 'subscription-groups.json');
+  const subscriptionsPath = path.join(temp, 'subscriptions.json');
+
+  await addSubscriptionGroup({ group: '股评', groupsPath, subscriptionsPath });
+  const result = await addSubscriptionGroup({ group: '股评', groupsPath, subscriptionsPath });
+
+  assert.equal(result.name, '股评');
+  assert.deepEqual(await listSubscriptionGroups({ groupsPath, subscriptionsPath }), ['股评']);
+});
+
+test('removes subscription groups and moves members to ungrouped', async () => {
+  const temp = await fs.mkdtemp(path.join(os.tmpdir(), 'bili-sub-'));
+  const subscriptionsPath = path.join(temp, 'subscriptions.json');
+  const groupsPath = path.join(temp, 'subscription-groups.json');
+  await fs.writeFile(groupsPath, JSON.stringify([{ name: '股评' }]), 'utf8');
+  await fs.writeFile(subscriptionsPath, JSON.stringify([
+    { mid: 1, name: 'one', input: '1', group: '股评', enabled: true },
+    { mid: 2, name: 'two', input: '2', group: '科技', enabled: true },
+  ]), 'utf8');
+
+  const result = await removeSubscriptionGroup({ group: '股评', groupsPath, subscriptionsPath });
+  const subscriptions = await listSubscriptions({ subscriptionsPath });
+
+  assert.equal(result.removed, '股评');
+  assert.equal(result.updatedSubscriptions, 1);
+  assert.equal(subscriptions.find((item) => item.mid === 1).group, '');
+  assert.equal(subscriptions.find((item) => item.mid === 2).group, '科技');
 });
 
 test('removes subscriptions by mid', async () => {
@@ -105,6 +208,30 @@ test('updates enabled subscriptions with incremental uploader downloads', async 
   assert.equal(seen[0].uploader, '1');
   assert.equal(seen[0].incrementalUpdate, true);
   assert.equal(seen[0].groupByDate, true);
+});
+
+test('updates only subscriptions in the selected group', async () => {
+  const temp = await fs.mkdtemp(path.join(os.tmpdir(), 'bili-sub-'));
+  const subscriptionsPath = path.join(temp, 'subscriptions.json');
+  await fs.writeFile(subscriptionsPath, JSON.stringify([
+    { mid: 1, name: 'one', input: '1', group: '股评', enabled: true },
+    { mid: 2, name: 'two', input: '2', group: '基金', enabled: true },
+    { mid: 3, name: 'three', input: '3', group: '', enabled: true },
+  ]), 'utf8');
+  const seen = [];
+
+  const result = await updateSubscriptions({
+    subscriptionsPath,
+    outputDir: temp,
+    subscriptionGroup: '基金',
+    downloadUploaderSubtitles: async (options) => {
+      seen.push(options.uploader);
+      return { status: 'completed', uploader: { mid: Number(options.uploader), name: options.uploader }, batch: { summary: { total: 0 } } };
+    },
+  });
+
+  assert.equal(result.summary.total, 1);
+  assert.deepEqual(seen, ['2']);
 });
 
 test('waits between enabled subscription updates', async () => {

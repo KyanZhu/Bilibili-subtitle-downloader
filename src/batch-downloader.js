@@ -27,13 +27,29 @@ function summarize(results) {
     authRequired: 0,
     errors: 0,
     failedVideos: [],
+    noSubtitleVideos: [],
+    authRequiredVideos: [],
   };
 
   for (const result of results) {
     if (result.status === 'downloaded') summary.downloaded += 1;
     if (result.status === 'audio-downloaded') summary.audioDownloaded += 1;
-    if (result.status === 'no-subtitles') summary.noSubtitles += 1;
-    if (result.status === 'auth-required') summary.authRequired += 1;
+    if (result.status === 'no-subtitles') {
+      summary.noSubtitles += 1;
+      summary.noSubtitleVideos.push({
+        input: result.input || result.bvid || '',
+        bvid: result.bvid || '',
+        title: result.title || '',
+      });
+    }
+    if (result.status === 'auth-required') {
+      summary.authRequired += 1;
+      summary.authRequiredVideos.push({
+        input: result.input || result.bvid || '',
+        bvid: result.bvid || '',
+        title: result.title || '',
+      });
+    }
     if (result.status === 'error') {
       summary.errors += 1;
       summary.failedVideos.push({

@@ -73,7 +73,9 @@ async function writeCollectedPlainText(payload, options = {}) {
 
   const outputDir = options.outputDir || 'downloads';
   await fs.mkdir(outputDir, { recursive: true });
-  const filePath = path.join(outputDir, `${dateFolderName(options.now || new Date())}.txt`);
+  const datePart = dateFolderName(options.now || new Date());
+  const suffix = options.filenameSuffix ? `-${options.filenameSuffix}` : '';
+  const filePath = path.join(outputDir, `${datePart}${suffix}.txt`);
   const content = entries.map((entry) => [
     `标题: ${entry.title || entry.id}`,
     `ID: ${entry.id}`,

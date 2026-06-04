@@ -1,5 +1,6 @@
 const test = require('node:test');
 const assert = require('node:assert/strict');
+const path = require('node:path');
 const { createGuiServer } = require('../src/gui-server');
 
 function listen(server) {
@@ -252,10 +253,20 @@ test('download api rejects missing video input', async () => {
 test('subscriptions api lists, adds, removes, and updates subscriptions', async () => {
   const calls = [];
   const store = [];
+  const groups = [];
   const server = createGuiServer({
+    listSubscriptionGroups: async () => groups,
+    addSubscriptionGroup: async (options) => {
+      groups.push(options.group);
+      return { name: options.group, groups };
+    },
+    removeSubscriptionGroup: async (options) => {
+      calls.push(['remove-group', options.group]);
+      return { removed: options.group, groups: [], updatedSubscriptions: 2 };
+    },
     listSubscriptions: async () => store,
     addSubscriptions: async (options) => {
-      const item = { mid: 1350959407, name: '三七床车流浪中国', input: options.input, enabled: true };
+      const item = { mid: 1350959407, name: '三七床车流浪中国', input: options.input, group: options.group, enabled: true };
       store.push(item);
       return { status: 'completed', summary: { total: 1, added: 1, errors: 0 }, results: [{ input: options.input, status: 'added', item }] };
     },
@@ -270,6 +281,7 @@ test('subscriptions api lists, adds, removes, and updates subscriptions', async 
         options.cookie,
         options.incrementalUpdate,
         options.groupByDate,
+        options.subscriptionGroup,
         options.publishedAfter,
         options.publishedBefore,
       ]);
@@ -282,14 +294,34 @@ test('subscriptions api lists, adds, removes, and updates subscriptions', async 
     let response = await fetch(`http://127.0.0.1:${port}/api/subscriptions`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ input: '1350959407' }),
+      body: JSON.stringify({ input: '1350959407', group: '股评' }),
     });
     assert.equal(response.status, 200);
     assert.equal((await response.json()).summary.added, 1);
 
+    response = await fetch(`http://127.0.0.1:${port}/api/subscription-groups`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ group: '股评' }),
+    });
+    assert.equal(response.status, 200);
+    assert.equal((await response.json()).name, '股评');
+
+    response = await fetch(`http://127.0.0.1:${port}/api/subscription-groups`);
+    assert.equal(response.status, 200);
+    assert.deepEqual((await response.json()).groups, ['股评']);
+
+    response = await fetch(`http://127.0.0.1:${port}/api/subscription-groups/${encodeURIComponent('股评')}`, { method: 'DELETE' });
+    assert.equal(response.status, 200);
+    assert.equal((await response.json()).updatedSubscriptions, 2);
+
     response = await fetch(`http://127.0.0.1:${port}/api/subscriptions`);
     assert.equal(response.status, 200);
-    assert.equal((await response.json()).subscriptions.length, 1);
+    {
+      const payload = await response.json();
+      assert.equal(payload.subscriptions.length, 1);
+      assert.equal(payload.subscriptions[0].group, '股评');
+    }
 
     response = await fetch(`http://127.0.0.1:${port}/api/subscriptions/update`, {
       method: 'POST',
@@ -298,16 +330,59 @@ test('subscriptions api lists, adds, removes, and updates subscriptions', async 
         outputDir: 'downloads',
         cookieText: '.bilibili.com\tTRUE\t/\tTRUE\t1785224583\tSESSDATA\tabc',
         groupByDate: true,
+        subscriptionGroup: '股评',
         startDate: '2026-05-08',
         endDate: '2026-05-09',
       }),
     });
     assert.equal(response.status, 200);
-    assert.deepEqual(calls[0], ['update', 'downloads', 'SESSDATA=abc', true, true, 1778198400, 1778371199]);
+    assert.deepEqual(calls[0], ['remove-group', '股评']);
+    assert.deepEqual(calls[1], ['update', 'downloads', 'SESSDATA=abc', true, true, '股评', 1778198400, 1778371199]);
 
     response = await fetch(`http://127.0.0.1:${port}/api/subscriptions/1350959407`, { method: 'DELETE' });
     assert.equal(response.status, 200);
-    assert.deepEqual(calls[1], ['remove', 1350959407]);
+    assert.deepEqual(calls[2], ['remove', 1350959407]);
+  } finally {
+    server.close();
+  }
+});
+
+test('subscriptions update writes collected plain text per group', async () => {
+  const collected = [];
+  const server = createGuiServer({
+    updateSubscriptions: async () => ({
+      status: 'completed',
+      summary: { total: 2, updated: 2, errors: 0 },
+      results: [
+        { subscription: { mid: 1, name: 'one', group: '股评' }, status: 'updated', result: { batch: { results: [] } } },
+        { subscription: { mid: 2, name: 'two', group: '股评' }, status: 'updated', result: { batch: { results: [] } } },
+      ],
+    }),
+    writeCollectedPlainText: async (payload, options) => {
+      collected.push({ payload, options });
+      return path.join(options.outputDir, `2026-06-02-${options.filenameSuffix}.txt`);
+    },
+    now: new Date('2026-06-02T10:00:00'),
+  });
+  const port = await listen(server);
+
+  try {
+    const response = await fetch(`http://127.0.0.1:${port}/api/subscriptions/update`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        outputDir: 'downloads',
+        collectPlainText: true,
+      }),
+    });
+    const payload = await response.json();
+
+    assert.equal(response.status, 200);
+    assert.equal(collected.length, 1);
+    assert.equal(collected[0].options.outputDir, path.join('downloads', '股评'));
+    assert.equal(collected[0].options.filenameSuffix, '股评');
+    assert.equal(collected[0].payload.results.length, 2);
+    assert.deepEqual(payload.collectedPlainTextPaths, [path.join('downloads', '股评', '2026-06-02-股评.txt')]);
   } finally {
     server.close();
   }

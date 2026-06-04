@@ -30,3 +30,23 @@ test('writes collected plain text to yyyy-mm-dd file under output directory', as
     '',
   ].join('\n'));
 });
+
+test('writes collected plain text with a filename suffix', async () => {
+  const temp = await fs.mkdtemp(path.join(os.tmpdir(), 'bili-collect-'));
+  const videoDir = path.join(temp, 'BV_TEST');
+  const subtitlesDir = path.join(videoDir, 'subtitles');
+  await fs.mkdir(subtitlesDir, { recursive: true });
+  const txtPath = path.join(subtitlesDir, 'p01-zh.txt');
+  await fs.writeFile(txtPath, 'hello', 'utf8');
+
+  const filePath = await writeCollectedPlainText({
+    bvid: 'BV_TEST',
+    downloaded: [{ txtPath }],
+  }, {
+    outputDir: temp,
+    filenameSuffix: '股评',
+    now: new Date('2026-06-02T10:20:30'),
+  });
+
+  assert.equal(filePath, path.join(temp, '2026-06-02-股评.txt'));
+});

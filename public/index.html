@@ -46,6 +46,18 @@
           </section>
 
           <section class="tab-panel" data-panel="subscriptions" hidden>
+            <div class="subscription-group-tools">
+              <label class="field">
+                <span>当前分组</span>
+                <select id="subscription-group-select" name="subscriptionGroupSelect"></select>
+              </label>
+              <label class="field">
+                <span>新建分组</span>
+                <input id="subscription-new-group-input" name="subscriptionNewGroup" autocomplete="off" placeholder="股评">
+              </label>
+              <button type="button" class="secondary" id="add-subscription-group-button">新建分组</button>
+              <button type="button" class="secondary danger-button" id="delete-subscription-group-button">删除分组</button>
+            </div>
             <div class="subscription-tools">
               <label class="field">
                 <span>添加订阅 UP 主</span>

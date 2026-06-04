@@ -4,13 +4,16 @@ const path = require('node:path');
 const { spawn } = require('node:child_process');
 const { downloadBatchSubtitles, parseBatchInputs } = require('./batch-downloader');
 const { parseCookieText } = require('./cookie');
-const { downloadVideoSubtitles } = require('./downloader');
+const { downloadVideoSubtitles, sanitizeName } = require('./downloader');
 const { writeCollectedPlainText } = require('./plain-text-collector');
 const { downloadUploaderSubtitles } = require('./uploader');
 const {
+  addSubscriptionGroup,
   addSubscription,
   addSubscriptions,
+  listSubscriptionGroups,
   listSubscriptions,
+  removeSubscriptionGroup,
   removeSubscription,
   updateSubscriptions,
 } = require('./subscriptions');
@@ -81,6 +84,36 @@ function parseDateBoundary(value, endOfDay = false) {
   return Math.floor(milliseconds / 1000);
 }
 
+function groupedSubscriptionResults(result) {
+  const groups = new Map();
+  for (const item of (result && result.results) || []) {
+    const group = sanitizeName(item && item.subscription ? item.subscription.group : '');
+    const key = group || '';
+    if (!groups.has(key)) {
+      groups.set(key, []);
+    }
+    groups.get(key).push(item);
+  }
+  return groups;
+}
+
+async function writeSubscriptionCollectedPlainText(result, options = {}) {
+  const paths = [];
+  const groups = groupedSubscriptionResults(result);
+  for (const [group, results] of groups) {
+    const outputDir = group ? path.join('downloads', group) : 'downloads';
+    const collectionPath = await options.writeCollectedPlainText({ ...result, results }, {
+      outputDir,
+      filenameSuffix: group,
+      now: options.now,
+    });
+    if (collectionPath) {
+      paths.push(collectionPath);
+    }
+  }
+  return paths;
+}
+
 async function readRequestJson(request) {
   const chunks = [];
   for await (const chunk of request) {
@@ -95,6 +128,9 @@ function createGuiServer(options = {}) {
   const runDownload = options.downloadVideoSubtitles || downloadVideoSubtitles;
   const runBatchDownload = options.downloadBatchSubtitles || downloadBatchSubtitles;
   const runUploaderDownload = options.downloadUploaderSubtitles || downloadUploaderSubtitles;
+  const runListSubscriptionGroups = options.listSubscriptionGroups || listSubscriptionGroups;
+  const runAddSubscriptionGroup = options.addSubscriptionGroup || addSubscriptionGroup;
+  const runRemoveSubscriptionGroup = options.removeSubscriptionGroup || removeSubscriptionGroup;
   const runListSubscriptions = options.listSubscriptions || listSubscriptions;
   const runAddSubscription = options.addSubscription || addSubscription;
   const runAddSubscriptions = options.addSubscriptions || addSubscriptions;
@@ -135,11 +171,30 @@ function createGuiServer(options = {}) {
         return;
       }
 
+      if (request.method === 'GET' && url.pathname === '/api/subscription-groups') {
+        sendJson(response, 200, { groups: await runListSubscriptionGroups() });
+        return;
+      }
+
+      if (request.method === 'POST' && url.pathname === '/api/subscription-groups') {
+        const body = await readRequestJson(request);
+        sendJson(response, 200, await runAddSubscriptionGroup({ group: body.group || body.name }));
+        return;
+      }
+
+      if (request.method === 'DELETE' && url.pathname.startsWith('/api/subscription-groups/')) {
+        const group = decodeURIComponent(url.pathname.replace('/api/subscription-groups/', ''));
+        sendJson(response, 200, await runRemoveSubscriptionGroup({ group }));
+        return;
+      }
+
       if (request.method === 'POST' && url.pathname === '/api/subscriptions') {
         const body = await readRequestJson(request);
         const result = await runAddSubscriptions({
           input: body.input,
+          group: body.group,
           cookie: parseCookieText(body.cookieText || ''),
+          delayMs: Number(body.delayMs || 800),
         });
         sendJson(response, 200, result);
         return;
@@ -172,6 +227,7 @@ function createGuiServer(options = {}) {
           collectPlainText: Boolean(body.collectPlainText),
           downloadAudioWhenNoSubtitles: Boolean(body.downloadAudioWhenNoSubtitles),
           groupByDate: Boolean(body.groupByDate),
+          subscriptionGroup: body.subscriptionGroup,
           incrementalUpdate: body.incrementalUpdate !== false,
           delayMs: Number(body.delayMs || 800),
           onProgress,
@@ -179,12 +235,13 @@ function createGuiServer(options = {}) {
           publishedBefore: parseDateBoundary(body.endDate, true),
         });
         if (body.collectPlainText) {
-          const collectionPath = await runWriteCollectedPlainText(result, {
-            outputDir: 'downloads',
+          const collectionPaths = await writeSubscriptionCollectedPlainText(result, {
+            writeCollectedPlainText: runWriteCollectedPlainText,
             now: options.now,
           });
-          if (collectionPath) {
-            result.collectedPlainTextPath = collectionPath;
+          if (collectionPaths.length > 0) {
+            result.collectedPlainTextPaths = collectionPaths;
+            result.collectedPlainTextPath = collectionPaths.join(', ');
           }
         }
         if (streamLogs) {

@@ -170,6 +170,7 @@ button {
 }
 
 input,
+select,
 textarea {
   width: 100%;
   border: 1px solid var(--border);
@@ -183,6 +184,11 @@ textarea {
 input {
   height: 44px;
   padding: 0 13px;
+}
+
+select {
+  height: 44px;
+  padding: 0 36px 0 13px;
 }
 
 textarea {
@@ -206,6 +212,7 @@ textarea.subscription-input {
 }
 
 input:focus,
+select:focus,
 textarea:focus {
   border-color: var(--accent);
   box-shadow: 0 0 0 3px rgba(0, 161, 214, 0.14);
@@ -263,24 +270,35 @@ textarea:focus {
   line-height: 1.6;
 }
 
+.subscription-group-tools,
 .subscription-tools {
   display: grid;
-  grid-template-columns: minmax(0, 1fr) auto;
   gap: 12px;
   align-items: end;
 }
 
+.subscription-group-tools {
+  grid-template-columns: minmax(160px, 220px) minmax(140px, 180px) auto auto;
+}
+
+.subscription-tools {
+  grid-template-columns: minmax(0, 1fr) auto;
+}
+
 .subscription-list {
   display: grid;
-  gap: 10px;
+  grid-template-columns: repeat(auto-fill, minmax(150px, 1fr));
+  gap: 8px;
 }
 
 .subscription-item {
+  position: relative;
   display: flex;
-  align-items: center;
-  justify-content: space-between;
-  gap: 12px;
-  padding: 12px;
+  align-items: flex-start;
+  justify-content: flex-start;
+  min-height: 58px;
+  gap: 8px;
+  padding: 10px 36px 9px 10px;
   border: 1px solid var(--border);
   border-radius: 8px;
   background: #fff;
@@ -288,8 +306,13 @@ textarea:focus {
 
 .subscription-item div {
   display: grid;
-  gap: 3px;
+  gap: 2px;
   min-width: 0;
+}
+
+.subscription-item strong {
+  font-size: 13px;
+  line-height: 1.2;
 }
 
 .subscription-item strong,
@@ -299,7 +322,36 @@ textarea:focus {
 
 .subscription-item span {
   color: var(--muted);
+  font-size: 11px;
+  line-height: 1.2;
+}
+
+.subscription-item button {
+  position: absolute;
+  top: 8px;
+  right: 8px;
+  min-height: 26px;
+  padding: 0 8px;
+  opacity: 0;
+  pointer-events: none;
   font-size: 12px;
+  transition: opacity 0.15s ease;
+}
+
+.subscription-item:hover button,
+.subscription-item:focus-within button {
+  opacity: 1;
+  pointer-events: auto;
+}
+
+button.danger-button {
+  border-color: #f1c5cc;
+  color: var(--danger);
+}
+
+button.danger-button:hover {
+  border-color: var(--danger);
+  background: #fff5f6;
 }
 
 .options {
@@ -470,6 +522,7 @@ button.secondary:hover {
     grid-template-columns: 1fr;
   }
 
+  .subscription-group-tools,
   .subscription-tools,
   .subscription-item {
     grid-template-columns: 1fr;
@@ -477,5 +530,10 @@ button.secondary:hover {
 
   .subscription-item {
     align-items: stretch;
+  }
+
+  .subscription-item button {
+    opacity: 1;
+    pointer-events: auto;
   }
 }

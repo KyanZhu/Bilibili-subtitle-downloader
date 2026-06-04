@@ -25,6 +25,10 @@ const downloadButton = document.querySelector('#download-button');
 const shutdownButton = document.querySelector('#shutdown-button');
 const clearButton = document.querySelector('#clear-button');
 const subscriptionInput = document.querySelector('#subscription-input');
+const subscriptionGroupSelect = document.querySelector('#subscription-group-select');
+const subscriptionNewGroupInput = document.querySelector('#subscription-new-group-input');
+const addSubscriptionGroupButton = document.querySelector('#add-subscription-group-button');
+const deleteSubscriptionGroupButton = document.querySelector('#delete-subscription-group-button');
 const addSubscriptionButton = document.querySelector('#add-subscription-button');
 const subscriptionList = document.querySelector('#subscription-list');
 
@@ -32,6 +36,9 @@ let lastPayload = null;
 let detailsVisible = false;
 let activeTab = 'video';
 let delayTouched = false;
+let subscriptionsCache = [];
+let subscriptionGroupsCache = [];
+let selectedSubscriptionGroup = '';
 
 function todayDateValue() {
   const date = new Date();
@@ -44,6 +51,14 @@ function todayDateValue() {
 function setStatus(label, className) {
   statusEl.className = `status ${className || ''}`.trim();
   statusEl.textContent = label;
+}
+
+function normalizedGroup(value) {
+  return String(value || '').trim();
+}
+
+function displayGroupName(value) {
+  return normalizedGroup(value) || '未分组';
 }
 
 function videoUrl(value) {
@@ -75,6 +90,15 @@ function addSummaryTotals(total, summary) {
   total.noSubtitles += summary.noSubtitles || 0;
   total.authRequired += summary.authRequired || 0;
   total.failedVideos.push(...(summary.failedVideos || []));
+  total.noSubtitleVideos.push(...(summary.noSubtitleVideos || []));
+  total.authRequiredVideos.push(...(summary.authRequiredVideos || []));
+}
+
+function videoLabel(item) {
+  const title = item && item.title ? item.title : '';
+  const id = item && (item.bvid || item.input) ? (item.bvid || item.input) : '';
+  if (title && id) return `${title} (${id})`;
+  return title || id || '未知视频';
 }
 
 function currentTab() {
@@ -93,6 +117,7 @@ function commonPayload(tabName = currentTab()) {
     downloadAudioWhenNoSubtitles: audioFallbackInput.checked,
     incrementalUpdate: incrementalUpdateInput.checked,
     groupByDate: tabName !== 'video' && groupByDateInput.checked,
+    subscriptionGroup: tabName === 'subscriptions' ? selectedSubscriptionGroup : undefined,
     delayMs: Number(delayInput.value || 800),
     startDate: startDateInput.value,
     endDate: endDateInput.value,
@@ -132,6 +157,8 @@ function summarizePayload(payload) {
       noSubtitles: 0,
       authRequired: 0,
       failedVideos: [],
+      noSubtitleVideos: [],
+      authRequiredVideos: [],
     };
     for (const item of payload.results) {
       if (item.status === 'updated' && item.result && item.result.batch && item.result.batch.summary) {
@@ -166,6 +193,22 @@ function summarizePayload(payload) {
         lines.push(`- ${videoUrl(item.url || item.input)}${item.error ? ` (${item.error})` : ''}`);
       }
     }
+
+    if (totals.noSubtitleVideos.length > 0) {
+      lines.push('');
+      lines.push('没有字幕的视频：');
+      for (const item of totals.noSubtitleVideos) {
+        lines.push(`- ${videoLabel(item)}`);
+      }
+    }
+
+    if (totals.authRequiredVideos.length > 0) {
+      lines.push('');
+      lines.push('需要权限的视频：');
+      for (const item of totals.authRequiredVideos) {
+        lines.push(`- ${videoLabel(item)}`);
+      }
+    }
     return lines.join('\n');
   }
 
@@ -195,6 +238,22 @@ function summarizePayload(payload) {
       lines.push('失败视频：');
       for (const item of failedVideos) {
         lines.push(`- ${videoUrl(item.url || item.input)}${item.error ? ` (${item.error})` : ''}`);
+      }
+    }
+    const noSubtitleVideos = summary.noSubtitleVideos || [];
+    if (noSubtitleVideos.length > 0) {
+      lines.push('');
+      lines.push('没有字幕的视频：');
+      for (const item of noSubtitleVideos) {
+        lines.push(`- ${videoLabel(item)}`);
+      }
+    }
+    const authRequiredVideos = summary.authRequiredVideos || [];
+    if (authRequiredVideos.length > 0) {
+      lines.push('');
+      lines.push('需要权限的视频：');
+      for (const item of authRequiredVideos) {
+        lines.push(`- ${videoLabel(item)}`);
       }
     }
     if (payload.collectedPlainTextPath) {
@@ -453,12 +512,13 @@ openOutputButton.addEventListener('click', async () => {
 });
 
 function renderSubscriptions(subscriptions) {
-  if (!subscriptions.length) {
-    subscriptionList.innerHTML = '<div class="empty-state"><h2>订阅更新</h2><p>还没有订阅 UP 主。</p></div>';
+  const filtered = subscriptions.filter((subscription) => normalizedGroup(subscription.group) === selectedSubscriptionGroup);
+  if (!filtered.length) {
+    subscriptionList.innerHTML = `<div class="empty-state"><h2>${displayGroupName(selectedSubscriptionGroup)}</h2><p>这个分组里还没有订阅 UP 主。</p></div>`;
     return;
   }
   subscriptionList.innerHTML = '';
-  for (const subscription of subscriptions) {
+  for (const subscription of filtered) {
     const item = document.createElement('div');
     item.className = 'subscription-item';
     item.innerHTML = `
@@ -474,16 +534,115 @@ function renderSubscriptions(subscriptions) {
   }
 }
 
+function renderSubscriptionGroups(groups, subscriptions) {
+  const names = new Set((groups || []).map(normalizedGroup).filter(Boolean));
+  let hasUngrouped = false;
+  for (const subscription of subscriptions || []) {
+    const group = normalizedGroup(subscription.group);
+    if (group) {
+      names.add(group);
+    } else {
+      hasUngrouped = true;
+    }
+  }
+
+  const nextGroups = Array.from(names).sort((left, right) => left.localeCompare(right, 'zh-CN'));
+  subscriptionGroupsCache = nextGroups;
+  if (selectedSubscriptionGroup && !nextGroups.includes(selectedSubscriptionGroup)) {
+    selectedSubscriptionGroup = '';
+  }
+  if (!selectedSubscriptionGroup && !hasUngrouped && nextGroups.length > 0) {
+    selectedSubscriptionGroup = nextGroups[0];
+  }
+
+  subscriptionGroupSelect.innerHTML = '';
+  if (hasUngrouped || nextGroups.length === 0) {
+    const option = document.createElement('option');
+    option.value = '';
+    option.textContent = '未分组';
+    subscriptionGroupSelect.appendChild(option);
+  }
+  for (const group of nextGroups) {
+    const option = document.createElement('option');
+    option.value = group;
+    option.textContent = group;
+    subscriptionGroupSelect.appendChild(option);
+  }
+  subscriptionGroupSelect.value = selectedSubscriptionGroup;
+  deleteSubscriptionGroupButton.disabled = !selectedSubscriptionGroup;
+}
+
 async function loadSubscriptions() {
   try {
-    const response = await fetch('/api/subscriptions');
-    const payload = await response.json();
-    if (!response.ok) throw new Error(payload.error || `HTTP ${response.status}`);
-    renderSubscriptions(payload.subscriptions || []);
+    const [subscriptionsResponse, groupsResponse] = await Promise.all([
+      fetch('/api/subscriptions'),
+      fetch('/api/subscription-groups'),
+    ]);
+    const subscriptionsPayload = await subscriptionsResponse.json();
+    const groupsPayload = await groupsResponse.json();
+    if (!subscriptionsResponse.ok) throw new Error(subscriptionsPayload.error || `HTTP ${subscriptionsResponse.status}`);
+    if (!groupsResponse.ok) throw new Error(groupsPayload.error || `HTTP ${groupsResponse.status}`);
+    subscriptionsCache = subscriptionsPayload.subscriptions || [];
+    renderSubscriptionGroups(groupsPayload.groups || [], subscriptionsCache);
+    renderSubscriptions(subscriptionsCache);
   } catch (error) {
     subscriptionList.innerHTML = `<div class="empty-state"><h2>订阅更新</h2><p>${error.message || String(error)}</p></div>`;
   }
 }
+
+subscriptionGroupSelect.addEventListener('change', () => {
+  selectedSubscriptionGroup = subscriptionGroupSelect.value;
+  renderSubscriptions(subscriptionsCache);
+});
+
+addSubscriptionGroupButton.addEventListener('click', async () => {
+  const group = subscriptionNewGroupInput.value.trim();
+  if (!group) return;
+  addSubscriptionGroupButton.disabled = true;
+  setStatus('Running', 'is-running');
+  try {
+    const response = await fetch('/api/subscription-groups', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ group }),
+    });
+    const payload = await response.json();
+    if (!response.ok) throw new Error(payload.error || `HTTP ${response.status}`);
+    selectedSubscriptionGroup = payload.name || group;
+    subscriptionNewGroupInput.value = '';
+    setStatus('Ready', '');
+    showResult('已新建分组', payload);
+    await loadSubscriptions();
+  } catch (error) {
+    setStatus('Error', 'is-error');
+    showResult('错误', error.message || String(error));
+  } finally {
+    addSubscriptionGroupButton.disabled = false;
+  }
+});
+
+deleteSubscriptionGroupButton.addEventListener('click', async () => {
+  const group = selectedSubscriptionGroup;
+  if (!group) return;
+  deleteSubscriptionGroupButton.disabled = true;
+  setStatus('Running', 'is-running');
+  try {
+    const response = await fetch(`/api/subscription-groups/${encodeURIComponent(group)}`, {
+      method: 'DELETE',
+    });
+    const payload = await response.json();
+    if (!response.ok) throw new Error(payload.error || `HTTP ${response.status}`);
+    selectedSubscriptionGroup = '';
+    setStatus('Ready', '');
+    showResult('已删除分组', payload);
+    await loadSubscriptions();
+  } catch (error) {
+    setStatus('Error', 'is-error');
+    showResult('错误', error.message || String(error));
+  } finally {
+    deleteSubscriptionGroupButton.disabled = !selectedSubscriptionGroup;
+  }
+});
 
 addSubscriptionButton.addEventListener('click', async () => {
   const input = subscriptionInput.value.trim();
@@ -494,7 +653,12 @@ addSubscriptionButton.addEventListener('click', async () => {
     const response = await fetch('/api/subscriptions', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ input, cookieText: cookieInput.value }),
+      body: JSON.stringify({
+        input,
+        group: selectedSubscriptionGroup,
+        cookieText: cookieInput.value,
+        delayMs: Number(delayInput.value || 800),
+      }),
     });
     const payload = await response.json();
     if (!response.ok) throw new Error(payload.error || `HTTP ${response.status}`);
