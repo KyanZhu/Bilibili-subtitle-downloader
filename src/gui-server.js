@@ -6,6 +6,7 @@ const { downloadBatchSubtitles, parseBatchInputs } = require('./batch-downloader
 const { parseCookieText } = require('./cookie');
 const { downloadVideoSubtitles, sanitizeName } = require('./downloader');
 const { writeCollectedPlainText } = require('./plain-text-collector');
+const { downloadSeasonSubtitles } = require('./season');
 const { downloadUploaderSubtitles } = require('./uploader');
 const {
   addSubscriptionGroup,
@@ -127,6 +128,7 @@ function createGuiServer(options = {}) {
   const publicDir = options.publicDir || path.join(__dirname, '..', 'public');
   const runDownload = options.downloadVideoSubtitles || downloadVideoSubtitles;
   const runBatchDownload = options.downloadBatchSubtitles || downloadBatchSubtitles;
+  const runSeasonDownload = options.downloadSeasonSubtitles || downloadSeasonSubtitles;
   const runUploaderDownload = options.downloadUploaderSubtitles || downloadUploaderSubtitles;
   const runListSubscriptionGroups = options.listSubscriptionGroups || listSubscriptionGroups;
   const runAddSubscriptionGroup = options.addSubscriptionGroup || addSubscriptionGroup;
@@ -311,6 +313,35 @@ function createGuiServer(options = {}) {
         const input = String(body.input || '').trim();
         if (!input) {
           sendJson(response, 400, { error: 'Video URL or BV id is required.' });
+          return;
+        }
+
+        if (body.seasonMode) {
+          const result = await runSeasonDownload({
+            ...commonOptions,
+            input,
+            delayMs: Number(body.delayMs || 800),
+            onProgress,
+            publishedAfter: parseDateBoundary(body.startDate),
+            publishedBefore: parseDateBoundary(body.endDate, true),
+          });
+          if (body.collectPlainText) {
+            const filenameSuffix = sanitizeName(result.season && result.season.title ? result.season.title : '');
+            const collectionPath = await runWriteCollectedPlainText(result, {
+              outputDir: result.outputDir || 'downloads',
+              filenameSuffix,
+              now: options.now,
+            });
+            if (collectionPath) {
+              result.collectedPlainTextPath = collectionPath;
+            }
+          }
+          if (streamLogs) {
+            sendJsonLine(response, { type: 'result', payload: result });
+            response.end();
+            return;
+          }
+          sendJson(response, 200, result);
           return;
         }
 

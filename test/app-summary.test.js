@@ -55,6 +55,7 @@ function loadAppContext(setup = () => {}) {
     '#collect-plain-text-input': createElementStub(),
     '#rename-by-title-input': createElementStub(),
     '#audio-fallback-input': createElementStub(),
+    '#season-mode-input': createElementStub(),
     '#incremental-update-input': createElementStub(),
     '#group-by-date-input': createElementStub(),
     '#delay-input': createElementStub(),
@@ -187,6 +188,21 @@ test('submits uploader tab to download api instead of subscription update api', 
   assert.equal(body.uploaderMode, true);
   assert.equal(body.uploader, '1350959407');
   assert.equal(body.streamLogs, true);
+});
+
+test('submits season mode from video tab to download api', async () => {
+  const context = loadAppContext((elements) => {
+    elements['#video-input'].value = 'https://space.bilibili.com/701260681/lists/7763764?type=season';
+    elements['#season-mode-input'].checked = true;
+    elements['#output-input'].value = 'downloads';
+  });
+
+  await context.__elements['#download-form'].listeners.submit({ preventDefault: () => {} });
+
+  assert.equal(context.__fetchCalls[0].url, '/api/download');
+  const body = JSON.parse(context.__fetchCalls[0].options.body);
+  assert.equal(body.seasonMode, true);
+  assert.equal(body.input, 'https://space.bilibili.com/701260681/lists/7763764?type=season');
 });
 
 test('submits subscriptions tab to subscription update api', async () => {

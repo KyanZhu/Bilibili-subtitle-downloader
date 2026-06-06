@@ -120,6 +120,19 @@ function createBilibiliClient(options = {}) {
       return { total, videos };
     },
 
+    async getSeasonArchives(mid, seasonId, options = {}) {
+      const pageNum = options.pageNum || 1;
+      const pageSize = options.pageSize || 100;
+      const url = `https://api.bilibili.com/x/polymer/web-space/seasons_archives_list?${toQuery({
+        mid,
+        season_id: seasonId,
+        sort_reverse: 'false',
+        page_num: pageNum,
+        page_size: pageSize,
+      })}`;
+      return getJson(url, '', 'season archives', options.referer || `https://space.bilibili.com/${mid}/lists/${seasonId}?type=season`);
+    },
+
     async resolveUploaderByName(name) {
       const url = `https://api.bilibili.com/x/web-interface/search/type?search_type=bili_user&keyword=${encodeURIComponent(name)}&page=1`;
       const data = await getJson(url, '', 'user search');

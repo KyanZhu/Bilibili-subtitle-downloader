@@ -114,3 +114,26 @@ test('fetches video info from the view endpoint', async () => {
   assert.equal(info.title, 'Video Title');
   assert.match(calls[0], /\/x\/web-interface\/view\?/);
 });
+
+test('fetches season archives from web-space endpoint', async () => {
+  const calls = [];
+  const client = createBilibiliClient({
+    fetch: async (url, options) => {
+      calls.push({ url, options });
+      return response({ archives: [], meta: { title: 'Season' } });
+    },
+  });
+
+  const data = await client.getSeasonArchives('701260681', '7763764', {
+    pageNum: 2,
+    pageSize: 50,
+    referer: 'https://space.bilibili.com/701260681/lists/7763764?type=season',
+  });
+
+  assert.equal(data.meta.title, 'Season');
+  assert.match(calls[0].url, /\/x\/polymer\/web-space\/seasons_archives_list\?/);
+  assert.match(calls[0].url, /mid=701260681/);
+  assert.match(calls[0].url, /season_id=7763764/);
+  assert.match(calls[0].url, /page_num=2/);
+  assert.equal(calls[0].options.headers.Referer, 'https://space.bilibili.com/701260681/lists/7763764?type=season');
+});

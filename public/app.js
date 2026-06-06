@@ -13,6 +13,7 @@ const plainTextInput = document.querySelector('#plain-text-input');
 const collectPlainTextInput = document.querySelector('#collect-plain-text-input');
 const renameByTitleInput = document.querySelector('#rename-by-title-input');
 const audioFallbackInput = document.querySelector('#audio-fallback-input');
+const seasonModeInput = document.querySelector('#season-mode-input');
 const incrementalUpdateInput = document.querySelector('#incremental-update-input');
 const groupByDateInput = document.querySelector('#group-by-date-input');
 const delayInput = document.querySelector('#delay-input');
@@ -115,6 +116,7 @@ function commonPayload(tabName = currentTab()) {
     collectPlainText: collectPlainTextInput.checked,
     renameByTitle: renameByTitleInput.checked,
     downloadAudioWhenNoSubtitles: audioFallbackInput.checked,
+    seasonMode: tabName === 'video' && seasonModeInput.checked,
     incrementalUpdate: incrementalUpdateInput.checked,
     groupByDate: tabName !== 'video' && groupByDateInput.checked,
     subscriptionGroup: tabName === 'subscriptions' ? selectedSubscriptionGroup : undefined,
@@ -219,6 +221,9 @@ function summarizePayload(payload) {
     const lines = [];
     if (payload.uploader) {
       lines.push(`UP 主：${payload.uploader.name || payload.uploader.mid}`);
+    }
+    if (payload.season) {
+      lines.push(`合集：${payload.season.title || payload.season.seasonId}`);
     }
     lines.push(`总共抓取视频：${payload.totalVideos || summary.total || 0}`);
     if (payload.filteredVideos !== undefined) {

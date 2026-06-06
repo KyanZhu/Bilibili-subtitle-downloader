@@ -227,6 +227,54 @@ test('download api forwards uploader date filters as inclusive timestamps', asyn
   }
 });
 
+test('download api forwards season mode to season downloader', async () => {
+  let received;
+  let collectedPayload;
+  const server = createGuiServer({
+    downloadSeasonSubtitles: async (options) => {
+      received = options;
+      return {
+        status: 'completed',
+        season: { title: '合集标题', seasonId: 7763764 },
+        outputDir: path.join('downloads', '合集标题'),
+        batch: { summary: { total: 2 }, results: [] },
+      };
+    },
+    writeCollectedPlainText: async (payload, options) => {
+      collectedPayload = { payload, options };
+      return path.join(options.outputDir, '2026-06-06-合集标题.txt');
+    },
+    now: new Date('2026-06-06T10:00:00'),
+  });
+  const port = await listen(server);
+
+  try {
+    const response = await fetch(`http://127.0.0.1:${port}/api/download`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        seasonMode: true,
+        input: 'https://space.bilibili.com/701260681/lists/7763764?type=season',
+        outputDir: 'downloads',
+        collectPlainText: true,
+        delayMs: 1200,
+      }),
+    });
+    const payload = await response.json();
+
+    assert.equal(response.status, 200);
+    assert.equal(received.input, 'https://space.bilibili.com/701260681/lists/7763764?type=season');
+    assert.equal(received.outputDir, 'downloads');
+    assert.equal(received.delayMs, 1200);
+    assert.equal(received.collectPlainText, true);
+    assert.equal(collectedPayload.options.outputDir, path.join('downloads', '合集标题'));
+    assert.equal(collectedPayload.options.filenameSuffix, '合集标题');
+    assert.equal(payload.collectedPlainTextPath, path.join('downloads', '合集标题', '2026-06-06-合集标题.txt'));
+  } finally {
+    server.close();
+  }
+});
+
 test('download api rejects missing video input', async () => {
   const server = createGuiServer({
     downloadVideoSubtitles: async () => {
